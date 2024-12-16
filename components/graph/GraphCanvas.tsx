@@ -89,25 +89,26 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
         onContextCreate={onContextCreate}
         onTouchEnd={handleTap}
       />
-      <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
-        {labelPositions.map(label => (
-          <Text
-            key={label.id}
-            style={[
-              styles.label,
-              {
-                position: 'absolute',
-                left: label.x,
-                top: label.y,
-                opacity: label.visible ? 1 : 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-              },
-            ]}
-          >
-            {label.label}
-          </Text>
-        ))}
-      </View>
+      {labelPositions.map(label => (
+        <Text
+          key={label.id}
+          style={[
+            styles.label,
+            {
+              position: 'absolute',
+              left: label.x,
+              top: label.y - 10, // Offset up slightly
+              opacity: label.visible ? 1 : 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              transform: [
+                { translateX: -50 }, // Center horizontally
+              ],
+            },
+          ]}
+        >
+          {label.label}
+        </Text>
+      ))}
     </View>
   );
 }
@@ -122,16 +123,18 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
+    backgroundColor: 'black',
   },
   label: {
     position: 'absolute',
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     padding: 4,
     borderRadius: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
     fontFamily: 'JetBrainsMono',
+    textAlign: 'center',
   },
 });
