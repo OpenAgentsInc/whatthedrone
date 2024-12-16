@@ -15,13 +15,23 @@ export function calculateLabelPositions(
     const nodeMesh = refs.nodes[node.id];
     if (!nodeMesh) return;
 
-    const vector = new THREE.Vector3();
-    vector.setFromMatrixPosition(nodeMesh.matrixWorld);
-    vector.project(refs.camera!);
+    // Create a position slightly to the right of the node for the label
+    const worldPos = new THREE.Vector3();
+    nodeMesh.getWorldPosition(worldPos);
+    
+    // Offset the label position slightly to the right
+    const labelPos = worldPos.clone();
+    labelPos.x += 0.5;
 
-    const x = (vector.x * 0.5 + 0.5) * width;
-    const y = (-vector.y * 0.5 + 0.5) * height;
-    const visible = vector.z < 1;
+    // Project to screen coordinates
+    labelPos.project(refs.camera!);
+
+    // Convert to screen coordinates
+    const x = (labelPos.x * 0.5 + 0.5) * width;
+    const y = (-labelPos.y * 0.5 + 0.5) * height;
+
+    // Check if node is in front of camera
+    const visible = labelPos.z < 1;
 
     positions.push({
       id: node.id,
