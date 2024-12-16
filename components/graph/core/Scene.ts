@@ -48,11 +48,15 @@ export function createScene(
   scene.add(dirLight);
 
   // Create nodes and edges
-  const nodeRefs: { [key: string]: THREE.Mesh } = {};
+  const nodeRefs: { [key: string]: THREE.Group } = {};
   const edgeRefs: THREE.LineSegments[] = [];
 
   // Create nodes
   nodes.forEach(node => {
+    const group = new THREE.Group();
+    group.position.copy(node.position);
+
+    // Create sphere
     const geometry = new THREE.SphereGeometry(0.3, 32, 32);
     const material = new THREE.MeshPhongMaterial({
       color: 0xffffff,
@@ -61,9 +65,31 @@ export function createScene(
       shininess: 100,
     });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(node.position);
-    scene.add(mesh);
-    nodeRefs[node.id] = mesh;
+    group.add(mesh);
+
+    // Create billboard for text
+    const canvas = new OffscreenCanvas(256, 64);
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, 256, 64);
+    ctx.font = '24px monospace';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.label, 128, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: texture,
+      sizeAttenuation: false,
+    });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.position.set(0.5, 0, 0); // Position to the right of the sphere
+    sprite.scale.set(0.5, 0.125, 1);
+    group.add(sprite);
+
+    scene.add(group);
+    nodeRefs[node.id] = group;
   });
 
   // Create edges
