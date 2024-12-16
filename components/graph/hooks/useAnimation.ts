@@ -8,7 +8,7 @@ export function useAnimation(
   mountedRef: React.RefObject<boolean>,
   onLabelUpdate: (positions: any[]) => void
 ) {
-  return useCallback(() => {
+  const animate = useCallback(() => {
     if (!mountedRef.current || !isFocused) {
       return;
     }
@@ -38,4 +38,6 @@ export function useAnimation(
       console.error("Error in animation loop:", error);
     }
   }, [isFocused, refs, mountedRef, onLabelUpdate]);
+
+  return animate;
 }
