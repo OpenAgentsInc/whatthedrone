@@ -3,6 +3,18 @@ import { ExpoWebGLRenderingContext } from 'expo-gl';
 import { MinimalCanvas } from '../../../types/canvas';
 import { Node, Edge, GraphRefs } from '../utils/types';
 
+function createTextSprite(text: string) {
+  const spriteMaterial = new THREE.SpriteMaterial({
+    color: 0xffffff,
+  });
+  
+  const sprite = new THREE.Sprite(spriteMaterial);
+  sprite.scale.set(1, 0.25, 1);
+  sprite.position.set(0.5, 0, 0); // Position to the right of the sphere
+  
+  return sprite;
+}
+
 export function createScene(
   gl: ExpoWebGLRenderingContext,
   nodes: Node[],
@@ -60,33 +72,16 @@ export function createScene(
     const geometry = new THREE.SphereGeometry(0.3, 32, 32);
     const material = new THREE.MeshPhongMaterial({
       color: 0xffffff,
-      emissive: 0x666666,
+      emissive: 0xffffff,
       emissiveIntensity: 0.2,
       shininess: 100,
     });
     const mesh = new THREE.Mesh(geometry, material);
     group.add(mesh);
 
-    // Create billboard for text
-    const canvas = new OffscreenCanvas(256, 64);
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(0, 0, 256, 64);
-    ctx.font = '24px monospace';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(node.label, 128, 32);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ 
-      map: texture,
-      sizeAttenuation: false,
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.position.set(0.5, 0, 0); // Position to the right of the sphere
-    sprite.scale.set(0.5, 0.125, 1);
-    group.add(sprite);
+    // Add text sprite
+    const textSprite = createTextSprite(node.label);
+    group.add(textSprite);
 
     scene.add(group);
     nodeRefs[node.id] = group;
