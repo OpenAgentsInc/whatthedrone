@@ -259,30 +259,32 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
 
   return (
     <View style={styles.container}>
+      {/* Labels go first */}
+      {labelPositions.map(label => (
+        <Text
+          key={label.id}
+          style={[
+            styles.label,
+            {
+              position: 'absolute',
+              left: label.x,
+              top: label.y,
+              opacity: label.visible ? 1 : 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              zIndex: 1,
+            },
+          ]}
+        >
+          {label.label}
+        </Text>
+      ))}
+      
+      {/* GLView goes on top */}
       <GLView
         key={isFocused ? "focused" : "unfocused"}
-        style={styles.canvas}
+        style={[styles.canvas, { zIndex: 0 }]}
         onContextCreate={onContextCreate}
       />
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {labelPositions.map(label => (
-          <Text
-            key={label.id}
-            style={[
-              styles.label,
-              {
-                position: 'absolute',
-                left: label.x,
-                top: label.y,
-                opacity: label.visible ? 1 : 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-              },
-            ]}
-          >
-            {label.label}
-          </Text>
-        ))}
-      </View>
     </View>
   );
 }
@@ -294,9 +296,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   canvas: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
   },
   label: {
     color: 'white',
