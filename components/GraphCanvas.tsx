@@ -39,7 +39,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const nodesRef = useRef<{ [key: string]: THREE.Mesh }>({}); 
+  const nodesRef = useRef<{ [key: string]: THREE.Group }>({}); 
   const edgesRef = useRef<THREE.LineSegments[]>([]);
   const animationFrameRef = useRef<number>();
   const [labelPositions, setLabelPositions] = useState<LabelPosition[]>([]);
@@ -55,17 +55,20 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
       const nodeMesh = nodesRef.current[node.id];
       if (!nodeMesh) return;
 
-      // Get screen position
-      const vector = new THREE.Vector3();
-      vector.setFromMatrixPosition(nodeMesh.matrixWorld);
-      vector.project(camera);
+      // Create a position slightly to the right of the node
+      const labelPos = new THREE.Vector3();
+      labelPos.copy(node.position);
+      labelPos.x += 0.5; // Offset to the right
+
+      // Project to screen coordinates
+      labelPos.project(camera);
 
       // Convert to screen coordinates
-      const x = (vector.x * 0.5 + 0.5) * renderer.domElement.width;
-      const y = (-vector.y * 0.5 + 0.5) * renderer.domElement.height;
+      const x = (labelPos.x * 0.5 + 0.5) * renderer.domElement.width;
+      const y = (-labelPos.y * 0.5 + 0.5) * renderer.domElement.height;
 
       // Check if node is in front of camera
-      const visible = vector.z < 1;
+      const visible = labelPos.z < 1;
 
       positions.push({
         id: node.id,
@@ -119,11 +122,13 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
 
     // Cleanup nodes
-    Object.values(nodesRef.current).forEach(mesh => {
-      if (mesh instanceof THREE.Mesh) {
-        mesh.geometry.dispose();
-        (mesh.material as THREE.Material).dispose();
-      }
+    Object.values(nodesRef.current).forEach(group => {
+      group.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
     });
     nodesRef.current = {};
 
@@ -178,26 +183,31 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     camera.position.z = 8;
 
     // Add ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Increased intensity
     scene.add(ambientLight);
 
     // Add directional light
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); // Increased intensity
     dirLight.position.set(5, 5, 5);
     scene.add(dirLight);
 
     // Create nodes
     nodes.forEach(node => {
+      const group = new THREE.Group();
+      group.position.copy(node.position);
+
       const geometry = new THREE.SphereGeometry(0.3, 32, 32);
       const material = new THREE.MeshPhongMaterial({
-        color: 0xcccccc,
-        emissive: 0x333333,
+        color: 0xffffff, // Pure white
+        emissive: 0x666666, // Lighter emissive
         emissiveIntensity: 0.2,
+        shininess: 100, // More shiny
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(node.position);
-      scene.add(mesh);
-      nodesRef.current[node.id] = mesh;
+      group.add(mesh);
+
+      scene.add(group);
+      nodesRef.current[node.id] = group;
     });
 
     // Create edges
@@ -212,7 +222,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
       ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const material = new THREE.LineBasicMaterial({
-        color: 0x333333,
+        color: 0x444444, // Slightly lighter edges
         opacity: 0.5,
         transparent: true,
       });
@@ -272,7 +282,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
               {
                 transform: [
                   { translateX: label.x },
-                  { translateY: label.y - 20 }, // Offset above the node
+                  { translateY: label.y },
                 ],
               },
             ]}
@@ -301,9 +311,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     color: 'white',
     fontSize: 12,
-    textAlign: 'center',
-    width: 100,
-    marginLeft: -50, // Center the label
+    textAlign: 'left',
+    width: 150,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
