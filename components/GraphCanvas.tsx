@@ -1,6 +1,6 @@
 import { ExpoWebGLRenderingContext, GLView } from "expo-gl";
-import React, { useCallback, useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet, View, Text } from "react-native";
 import * as THREE from "three";
 import { MinimalCanvas } from "../types/canvas";
 import { useIsFocused } from "@react-navigation/native";
@@ -24,6 +24,14 @@ interface GraphCanvasProps {
   onNodeSelect?: (node: Node | null) => void;
 }
 
+interface LabelPosition {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  visible: boolean;
+}
+
 export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const isFocused = useIsFocused();
   const mountedRef = useRef(true);
@@ -31,9 +39,45 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const nodesRef = useRef<{ [key: string]: THREE.Group }>({}); // Changed to Group to include text
+  const nodesRef = useRef<{ [key: string]: THREE.Mesh }>({}); 
   const edgesRef = useRef<THREE.LineSegments[]>([]);
   const animationFrameRef = useRef<number>();
+  const [labelPositions, setLabelPositions] = useState<LabelPosition[]>([]);
+
+  const updateLabelPositions = useCallback(() => {
+    if (!cameraRef.current || !rendererRef.current) return;
+
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    const positions: LabelPosition[] = [];
+
+    nodes.forEach(node => {
+      const nodeMesh = nodesRef.current[node.id];
+      if (!nodeMesh) return;
+
+      // Get screen position
+      const vector = new THREE.Vector3();
+      vector.setFromMatrixPosition(nodeMesh.matrixWorld);
+      vector.project(camera);
+
+      // Convert to screen coordinates
+      const x = (vector.x * 0.5 + 0.5) * renderer.domElement.width;
+      const y = (-vector.y * 0.5 + 0.5) * renderer.domElement.height;
+
+      // Check if node is in front of camera
+      const visible = vector.z < 1;
+
+      positions.push({
+        id: node.id,
+        x: x,
+        y: y,
+        label: node.label,
+        visible,
+      });
+    });
+
+    setLabelPositions(positions);
+  }, [nodes]);
 
   const animate = useCallback(() => {
     if (!mountedRef.current || !isFocused) {
@@ -50,17 +94,10 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     cameraRef.current.position.z = Math.sin(time) * 8;
     cameraRef.current.lookAt(0, 0, 0);
 
-    // Update text rotations to face camera
-    Object.values(nodesRef.current).forEach(group => {
-      const text = group.children.find(child => child instanceof THREE.Sprite);
-      if (text) {
-        text.lookAt(cameraRef.current!.position);
-      }
-    });
-
     try {
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       glRef.current.endFrameEXP();
+      updateLabelPositions();
 
       if (mountedRef.current && isFocused) {
         animationFrameRef.current = requestAnimationFrame(animate);
@@ -68,7 +105,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     } catch (error) {
       console.error("Error in animation loop:", error);
     }
-  }, [isFocused]);
+  }, [isFocused, updateLabelPositions]);
 
   const cleanupGL = useCallback(() => {
     if (animationFrameRef.current) {
@@ -82,13 +119,11 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
 
     // Cleanup nodes
-    Object.values(nodesRef.current).forEach(group => {
-      group.children.forEach(child => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          (child.material as THREE.Material).dispose();
-        }
-      });
+    Object.values(nodesRef.current).forEach(mesh => {
+      if (mesh instanceof THREE.Mesh) {
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      }
     });
     nodesRef.current = {};
 
@@ -107,26 +142,6 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     glRef.current = undefined;
     cameraRef.current = undefined;
   }, []);
-
-  const createTextSprite = (text: string) => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d')!;
-    canvas.width = 256;
-    canvas.height = 128;
-
-    context.font = "24px Arial";
-    context.fillStyle = "white";
-    context.textAlign = "center";
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(2, 1, 1);
-    sprite.position.y = 0.5; // Position above the sphere
-
-    return sprite;
-  };
 
   const setupScene = useCallback((gl: ExpoWebGLRenderingContext) => {
     cleanupGL();
@@ -173,9 +188,6 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
 
     // Create nodes
     nodes.forEach(node => {
-      const group = new THREE.Group();
-      group.position.copy(node.position);
-
       const geometry = new THREE.SphereGeometry(0.3, 32, 32);
       const material = new THREE.MeshPhongMaterial({
         color: 0xcccccc,
@@ -183,14 +195,9 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
         emissiveIntensity: 0.2,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      group.add(mesh);
-
-      // Add text sprite
-      const textSprite = createTextSprite(node.label);
-      group.add(textSprite);
-
-      scene.add(group);
-      nodesRef.current[node.id] = group;
+      mesh.position.copy(node.position);
+      scene.add(mesh);
+      nodesRef.current[node.id] = mesh;
     });
 
     // Create edges
@@ -256,6 +263,24 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
         style={styles.canvas}
         onContextCreate={onContextCreate}
       />
+      {labelPositions.map(label => (
+        label.visible && (
+          <Text
+            key={label.id}
+            style={[
+              styles.label,
+              {
+                transform: [
+                  { translateX: label.x },
+                  { translateY: label.y - 20 }, // Offset above the node
+                ],
+              },
+            ]}
+          >
+            {label.label}
+          </Text>
+        )
+      ))}
     </View>
   );
 }
@@ -270,5 +295,17 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
+  },
+  label: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    width: 100,
+    marginLeft: -50, // Center the label
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
