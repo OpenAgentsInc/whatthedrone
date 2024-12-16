@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { GraphCanvas } from '../components/GraphCanvas';
+import { GraphCanvas } from '../components/graph/GraphCanvas';
 import { INITIAL_GRAPH } from '../data/initial-graph';
 
 export default function Index() {
