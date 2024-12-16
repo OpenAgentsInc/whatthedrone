@@ -3,6 +3,9 @@
 ## Overview
 WhatTheDrone is a mobile/web app for collecting and querying information about drone sightings and related events. The app implements a simplified version of GraphRAG, representing information as nodes with edges in a local SQLite database, with semantic search capabilities running directly on the device.
 
+## Quick Start
+See [Vertical Slice](./vertical-slice.md) for a 5-minute setup guide to get the initial graph visualization working with our first source article.
+
 ## Core Features
 
 ### 1. Local-First Architecture
@@ -75,15 +78,15 @@ CREATE TABLE embeddings_cache (
 
 ## Implementation Todo List
 
-### Phase 1: Basic Infrastructure
-1. [ ] Set up basic Expo project with TypeScript
+### Phase 1: Basic Infrastructure (See Vertical Slice)
+1. [x] Set up basic Expo project with TypeScript
 2. [ ] Implement SQLite database schema and basic operations
-3. [ ] Create basic UI layout with navigation
-4. [ ] Implement basic graph visualization with Three.js
-   - [ ] Basic node rendering
-   - [ ] Edge rendering
-   - [ ] Pan/zoom controls
-   - [ ] Node selection
+3. [x] Create basic UI layout with navigation
+4. [x] Implement basic graph visualization with Three.js
+   - [x] Basic node rendering
+   - [x] Edge rendering
+   - [x] Basic rotation
+   - [x] Node selection
 
 ### Phase 2: Knowledge Graph Core
 1. [ ] Implement node creation/storage
@@ -145,7 +148,7 @@ CREATE TABLE embeddings_cache (
 
 ## Initial Focus
 The first version will focus on:
-1. Basic graph visualization
+1. Basic graph visualization (see Vertical Slice)
 2. Local database implementation
 3. Simple semantic search
 4. Content viewing
