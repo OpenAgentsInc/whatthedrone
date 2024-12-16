@@ -31,7 +31,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const nodesRef = useRef<{ [key: string]: THREE.Mesh }>({}); // Store node meshes by id
+  const nodesRef = useRef<{ [key: string]: THREE.Group }>({}); // Changed to Group to include text
   const edgesRef = useRef<THREE.LineSegments[]>([]);
   const animationFrameRef = useRef<number>();
 
@@ -45,10 +45,18 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
 
     // Rotate camera around scene
-    const time = Date.now() * 0.0005;
-    cameraRef.current.position.x = Math.cos(time) * 5;
-    cameraRef.current.position.z = Math.sin(time) * 5;
+    const time = Date.now() * 0.0002; // Slowed down rotation
+    cameraRef.current.position.x = Math.cos(time) * 8;
+    cameraRef.current.position.z = Math.sin(time) * 8;
     cameraRef.current.lookAt(0, 0, 0);
+
+    // Update text rotations to face camera
+    Object.values(nodesRef.current).forEach(group => {
+      const text = group.children.find(child => child instanceof THREE.Sprite);
+      if (text) {
+        text.lookAt(cameraRef.current!.position);
+      }
+    });
 
     try {
       rendererRef.current.render(sceneRef.current, cameraRef.current);
@@ -74,11 +82,13 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
 
     // Cleanup nodes
-    Object.values(nodesRef.current).forEach(mesh => {
-      if (mesh instanceof THREE.Mesh) {
-        mesh.geometry.dispose();
-        (mesh.material as THREE.Material).dispose();
-      }
+    Object.values(nodesRef.current).forEach(group => {
+      group.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
     });
     nodesRef.current = {};
 
@@ -98,16 +108,24 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     cameraRef.current = undefined;
   }, []);
 
-  const getColorForType = (type: string): number => {
-    switch(type) {
-      case 'source': return 0xff0000;
-      case 'person': return 0x00ff00;
-      case 'place': return 0x0000ff;
-      case 'event': return 0xffff00;
-      case 'claim': return 0xff00ff;
-      case 'organization': return 0x00ffff;
-      default: return 0xffffff;
-    }
+  const createTextSprite = (text: string) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.width = 256;
+    canvas.height = 128;
+
+    context.font = "24px Arial";
+    context.fillStyle = "white";
+    context.textAlign = "center";
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(2, 1, 1);
+    sprite.position.y = 0.5; // Position above the sphere
+
+    return sprite;
   };
 
   const setupScene = useCallback((gl: ExpoWebGLRenderingContext) => {
@@ -142,7 +160,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
       0.1,
       1000
     );
-    camera.position.z = 5;
+    camera.position.z = 8;
 
     // Add ambient light
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -155,16 +173,24 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
 
     // Create nodes
     nodes.forEach(node => {
-      const geometry = new THREE.SphereGeometry(0.2, 32, 32);
+      const group = new THREE.Group();
+      group.position.copy(node.position);
+
+      const geometry = new THREE.SphereGeometry(0.3, 32, 32);
       const material = new THREE.MeshPhongMaterial({
-        color: getColorForType(node.type),
-        emissive: getColorForType(node.type),
+        color: 0xcccccc,
+        emissive: 0x333333,
         emissiveIntensity: 0.2,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(node.position);
-      scene.add(mesh);
-      nodesRef.current[node.id] = mesh;
+      group.add(mesh);
+
+      // Add text sprite
+      const textSprite = createTextSprite(node.label);
+      group.add(textSprite);
+
+      scene.add(group);
+      nodesRef.current[node.id] = group;
     });
 
     // Create edges
@@ -179,7 +205,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
       ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const material = new THREE.LineBasicMaterial({
-        color: 0xffffff,
+        color: 0x333333,
         opacity: 0.5,
         transparent: true,
       });
