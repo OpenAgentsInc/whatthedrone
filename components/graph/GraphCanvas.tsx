@@ -1,13 +1,10 @@
 import { ExpoWebGLRenderingContext, GLView } from "expo-gl";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View, Text, Dimensions } from "react-native";
+import React, { useCallback, useEffect, useRef } from "react";
+import { StyleSheet, View, Text } from "react-native";
 import * as THREE from "three";
 import { useIsFocused } from "@react-navigation/native";
-import { Node, Edge, GraphRefs, LabelPosition } from "./utils/types";
+import { Node, Edge, GraphRefs } from "./utils/types";
 import { createScene } from "./core/Scene";
-import { useAnimation } from "./hooks/useAnimation";
-import { useCleanup } from "./hooks/useCleanup";
-import { screenToNormalizedCoordinates } from "./utils/coordinates";
 
 interface GraphCanvasProps {
   nodes: Node[];
@@ -22,24 +19,59 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     nodes: {},
     edges: [],
   });
-  const [labelPositions, setLabelPositions] = useState<LabelPosition[]>([]);
 
-  const cleanup = useCleanup(refs.current);
-  const animate = useAnimation(refs.current, isFocused, mountedRef, setLabelPositions);
+  const animate = useCallback(() => {
+    if (!mountedRef.current || !isFocused) {
+      return;
+    }
+
+    if (!refs.current.gl || !refs.current.renderer || !refs.current.scene || !refs.current.camera) {
+      return;
+    }
+
+    // Rotate camera around scene
+    const time = Date.now() * 0.0002;
+    refs.current.camera.position.x = Math.cos(time) * 8;
+    refs.current.camera.position.z = Math.sin(time) * 8;
+    refs.current.camera.lookAt(0, 0, 0);
+
+    // Make all sprites face the camera
+    Object.values(refs.current.nodes).forEach(group => {
+      const sprite = group.children[1];
+      if (sprite instanceof THREE.Sprite) {
+        sprite.lookAt(refs.current.camera!.position);
+      }
+    });
+
+    try {
+      refs.current.renderer.render(refs.current.scene, refs.current.camera);
+      refs.current.gl.endFrameEXP();
+
+      if (mountedRef.current && isFocused) {
+        refs.current.animation = requestAnimationFrame(animate);
+      }
+    } catch (error) {
+      console.error("Error in animation loop:", error);
+    }
+  }, [isFocused]);
 
   const handleTap = useCallback((event: any) => {
     if (!refs.current.camera || !refs.current.renderer || !refs.current.scene) return;
 
     const { locationX, locationY } = event.nativeEvent;
-    const { width, height } = Dimensions.get('window');
+    const { width, height } = refs.current.renderer.domElement;
 
-    const mouse = screenToNormalizedCoordinates(locationX, locationY, width, height);
+    const mouse = new THREE.Vector2(
+      (locationX / width) * 2 - 1,
+      -(locationY / height) * 2 + 1
+    );
+
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, refs.current.camera);
 
-    const meshes = Object.entries(refs.current.nodes).map(([id, mesh]) => ({
+    const meshes = Object.entries(refs.current.nodes).map(([id, group]) => ({
       id,
-      mesh,
+      mesh: group.children[0] as THREE.Mesh,
     }));
 
     const intersects = raycaster.intersectObjects(meshes.map(m => m.mesh));
@@ -67,19 +99,13 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   }, [isFocused, nodes, edges, animate]);
 
   useEffect(() => {
-    if (isFocused) {
-      cleanup();
-    } else {
-      cleanup();
-    }
-  }, [isFocused, cleanup]);
-
-  useEffect(() => {
     return () => {
       mountedRef.current = false;
-      cleanup();
+      if (refs.current.animation) {
+        cancelAnimationFrame(refs.current.animation);
+      }
     };
-  }, [cleanup]);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -89,26 +115,6 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
         onContextCreate={onContextCreate}
         onTouchEnd={handleTap}
       />
-      {labelPositions.map(label => (
-        <Text
-          key={label.id}
-          style={[
-            styles.label,
-            {
-              position: 'absolute',
-              left: label.x,
-              top: label.y - 10, // Offset up slightly
-              opacity: label.visible ? 1 : 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              transform: [
-                { translateX: -50 }, // Center horizontally
-              ],
-            },
-          ]}
-        >
-          {label.label}
-        </Text>
-      ))}
     </View>
   );
 }
@@ -124,17 +130,5 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: 'black',
-  },
-  label: {
-    position: 'absolute',
-    color: 'white',
-    fontSize: 12,
-    padding: 4,
-    borderRadius: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-    fontFamily: 'JetBrainsMono',
-    textAlign: 'center',
   },
 });
