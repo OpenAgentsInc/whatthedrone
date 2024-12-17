@@ -1,13 +1,58 @@
-import { View, StyleSheet } from 'react-native';
-import { useState } from 'react';
+import { View, StyleSheet, Button, Text } from 'react-native';
+import { useState, useEffect } from 'react';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
 import GraphAnalysisPanel from './components/GraphAnalysisPanel';
 import { INITIAL_GRAPH_DATA } from '../data/graph';
 import { Node, Edge } from './types/graph';
+import useModelDownload from './components/useModelDownload';
+import type { LlamaContext } from 'llama.rn';
+
+// Model details
+const MODEL_REPO = "meta-llama/Llama-3.2-3B-Instruct"
+const MODEL_FILE = "model.gguf"
 
 export default function Index() {
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
   const [surroundingNodes, setSurroundingNodes] = useState<Node[]>([]);
+  const [llamaContext, setLlamaContext] = useState<LlamaContext | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [initProgress, setInitProgress] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { downloadAndInitModel } = useModelDownload();
+
+  // Load model on first render
+  useEffect(() => {
+    loadModel();
+  }, []);
+
+  const loadModel = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const context = await downloadAndInitModel(
+        MODEL_REPO,
+        MODEL_FILE,
+        (progress) => {
+          console.log('Download:', progress.percentage);
+          setDownloadProgress(progress.percentage);
+        },
+        (progress) => {
+          console.log('Init:', progress);
+          setInitProgress(progress);
+        }
+      );
+
+      setLlamaContext(context);
+    } catch (err) {
+      console.error('Failed to load model:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load model');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // When nodes are selected, find their immediate neighbors
   const handleNodeSelect = (nodes: Node[]) => {
@@ -45,13 +90,32 @@ export default function Index() {
         onNodesSelected={handleNodeSelect}
       />
       
+      {/* Model loading overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <Text style={styles.loadingText}>
+            {downloadProgress < 100 
+              ? `Downloading model: ${downloadProgress}%`
+              : `Initializing model: ${initProgress}%`
+            }
+          </Text>
+        </View>
+      )}
+
+      {error && (
+        <View style={styles.errorOverlay}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Button title="Retry" onPress={loadModel} />
+        </View>
+      )}
+      
       {/* Analysis panel overlay */}
       <View style={styles.analysisOverlay}>
         <GraphAnalysisPanel
           selectedNodes={selectedNodes}
           surroundingNodes={surroundingNodes}
           edges={INITIAL_GRAPH_DATA.edges}
-          llamaContext={null} // TODO: Add Llama context
+          llamaContext={llamaContext}
         />
       </View>
     </View>
@@ -62,6 +126,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  errorOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'rgba(255, 0, 0, 0.8)',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 10,
   },
   analysisOverlay: {
     position: 'absolute',
