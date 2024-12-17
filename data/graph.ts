@@ -1,7 +1,5 @@
 import { GraphData } from './types';
-import { telegraphData } from './sources/telegraph';
-import { whiteHouseData } from './sources/white-house';
-import { skojecData } from './sources/skojec';
+import { telegraphData, whiteHouseData, skojecData } from './sources';
 
 // Merge all nodes and edges from different sources
 function mergeGraphData(...graphDatas: GraphData[]): GraphData {
