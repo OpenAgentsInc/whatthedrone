@@ -1,10 +1,12 @@
-import { ExpoWebGLRenderingContext, GLView } from "expo-gl";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View, Text, Dimensions, PanResponder, GestureResponderEvent } from "react-native";
-import * as THREE from "three";
-import { useIsFocused } from "@react-navigation/native";
-import { Node, Edge, GraphRefs, LabelPosition } from "./types";
-import { createScene } from "./Scene";
+import { ExpoWebGLRenderingContext, GLView } from "expo-gl"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import {
+    Dimensions, GestureResponderEvent, PanResponder, StyleSheet, Text, View
+} from "react-native"
+import * as THREE from "three"
+import { useIsFocused } from "@react-navigation/native"
+import { createScene } from "./Scene"
+import { Edge, GraphRefs, LabelPosition, Node } from "./types"
 
 interface GraphCanvasProps {
   nodes: Node[];
@@ -24,7 +26,7 @@ interface TouchState {
 }
 
 // Constants for sensitivity
-const PAN_SENSITIVITY = 0.0025; // Reduced from 0.005 (50% less)
+const PAN_SENSITIVITY = 0.0005; // Reduced from 0.005 (50% less)
 const ZOOM_SENSITIVITY = 0.5;  // For pinch zoom
 const ROTATION_SENSITIVITY = 1.0; // For two-finger rotation
 const MIN_ZOOM = 4;
@@ -125,7 +127,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }));
 
     const intersects = raycaster.intersectObjects(meshes.map(m => m.mesh));
-    
+
     if (intersects.length > 0) {
       const hitMesh = intersects[0].object;
       const nodeEntry = meshes.find(m => m.mesh === hitMesh);
@@ -191,7 +193,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
           // Simple panning - move the camera target
           const dx = gestureState.dx * PAN_SENSITIVITY;
           const dy = gestureState.dy * PAN_SENSITIVITY;
-          
+
           // Update camera target
           cameraTarget.current.x -= dx;
           cameraTarget.current.y += dy;
@@ -237,7 +239,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
 
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     Object.assign(refs.current, createScene(gl, nodes, edges));
-    
+
     if (isFocused && mountedRef.current) {
       refs.current.animation = requestAnimationFrame(animate);
     }
