@@ -24,11 +24,12 @@ interface TouchState {
 }
 
 // Constants for sensitivity
-const PAN_SENSITIVITY = 0.005; // Reduced from 0.02
-const ZOOM_SENSITIVITY = 0.5;  // Added to dampen zoom
-const MIN_ZOOM = 4;           // Increased minimum zoom (more zoomed out)
-const MAX_ZOOM = 12;          // Reduced maximum zoom (less zoomed in)
-const INITIAL_Z = 8;          // Starting zoom level
+const PAN_SENSITIVITY = 0.0025; // Reduced from 0.005 (50% less)
+const ZOOM_SENSITIVITY = 0.5;  // For pinch zoom
+const ROTATION_SENSITIVITY = 1.0; // For two-finger rotation
+const MIN_ZOOM = 4;
+const MAX_ZOOM = 12;
+const INITIAL_Z = 8;
 
 export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const isFocused = useIsFocused();
@@ -147,6 +148,15 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  const getAngle = (touches: { [key: string]: { x: number; y: number } }) => {
+    const touchArray = Object.values(touches);
+    if (touchArray.length < 2) return null;
+    return Math.atan2(
+      touchArray[1].y - touchArray[0].y,
+      touchArray[1].x - touchArray[0].x
+    );
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -161,6 +171,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
           };
         });
         touchState.current.previousDistance = getDistance(touchState.current.previousTouches);
+        touchState.current.previousAngle = getAngle(touchState.current.previousTouches);
       },
 
       onPanResponderMove: (evt, gestureState) => {
@@ -188,18 +199,29 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
           // Move camera while maintaining its relative position
           refs.current.camera.position.x = cameraTarget.current.x;
           refs.current.camera.position.y = cameraTarget.current.y;
-          refs.current.camera.position.z = INITIAL_Z; // Keep constant z distance
+          refs.current.camera.position.z = INITIAL_Z;
           refs.current.camera.lookAt(cameraTarget.current);
 
         } else if (touchCount === 2) {
-          // Pinch to zoom with reduced sensitivity
+          // Handle zoom and rotation
           const currentDistance = getDistance(currentTouches);
+          const currentAngle = getAngle(currentTouches);
+
+          // Pinch to zoom
           if (touchState.current.previousDistance && currentDistance) {
             const scale = 1 + ((currentDistance / touchState.current.previousDistance - 1) * ZOOM_SENSITIVITY);
             const newZ = refs.current.camera.position.z / scale;
             refs.current.camera.position.z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZ));
           }
+
+          // Rotation
+          if (touchState.current.previousAngle && currentAngle) {
+            const angleChange = (currentAngle - touchState.current.previousAngle) * ROTATION_SENSITIVITY;
+            refs.current.camera.position.applyAxisAngle(new THREE.Vector3(0, 0, 1), -angleChange);
+          }
+
           touchState.current.previousDistance = currentDistance;
+          touchState.current.previousAngle = currentAngle;
         }
 
         touchState.current.previousTouches = currentTouches;
