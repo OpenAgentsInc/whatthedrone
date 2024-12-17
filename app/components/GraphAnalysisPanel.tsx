@@ -86,13 +86,13 @@ export default function GraphAnalysisPanel({
       )}
 
       <View style={styles.contentContainer}>
+
         <ScrollView style={styles.logsContainer}>
           <Text style={styles.sectionTitle}>Analysis Log</Text>
           {logs.map((log, i) => (
             <Text key={i} style={styles.logEntry}>{log}</Text>
           ))}
         </ScrollView>
-
         <ScrollView style={styles.insightsContainer}>
           <Text style={styles.sectionTitle}>Insights ({insights.length})</Text>
           {insights.map((insight, i) => (
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderRadius: 8,
     margin: 8,
-    height: '50%',
+    height: '90%',
   },
   contentContainer: {
     flexDirection: 'row',
