@@ -1,9 +1,9 @@
-import { View, StyleSheet } from 'react-native';
-import { useState } from 'react';
-import { GraphCanvas } from '../components/graph/GraphCanvas';
-import { GraphAnalysisPanel } from '../components/GraphAnalysisPanel';
-import { INITIAL_GRAPH_DATA } from '../data/graph';
-import { Node, Edge } from '../types/graph';
+import { useState } from "react"
+import { StyleSheet, View } from "react-native"
+import { GraphCanvas } from "../components/graph/GraphCanvas"
+import { INITIAL_GRAPH_DATA } from "../data/graph"
+import { Node } from "../types/graph"
+import { GraphAnalysisPanel } from "./components/GraphAnalysisPanel"
 
 export default function Index() {
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
@@ -12,14 +12,14 @@ export default function Index() {
   // When nodes are selected, find their immediate neighbors
   const handleNodeSelect = (nodes: Node[]) => {
     setSelectedNodes(nodes);
-    
+
     // Find all nodes connected to selected nodes
     const neighbors = new Set<Node>();
-    
+
     INITIAL_GRAPH_DATA.edges.forEach(edge => {
       const fromNode = INITIAL_GRAPH_DATA.nodes.find(n => n.id === edge.from);
       const toNode = INITIAL_GRAPH_DATA.nodes.find(n => n.id === edge.to);
-      
+
       if (!fromNode || !toNode) return;
 
       // If either end is selected, add the other end to neighbors
@@ -33,18 +33,18 @@ export default function Index() {
 
     // Remove selected nodes from neighbors
     nodes.forEach(n => neighbors.delete(n));
-    
+
     setSurroundingNodes(Array.from(neighbors));
   };
 
   return (
     <View style={styles.container}>
-      <GraphCanvas 
+      <GraphCanvas
         nodes={INITIAL_GRAPH_DATA.nodes}
         edges={INITIAL_GRAPH_DATA.edges}
         onNodesSelected={handleNodeSelect}
       />
-      
+
       {/* Analysis panel overlay */}
       <View style={styles.analysisOverlay}>
         <GraphAnalysisPanel
