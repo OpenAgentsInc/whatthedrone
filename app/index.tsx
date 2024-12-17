@@ -1,5 +1,5 @@
 import { View, StyleSheet, Button, Text } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
 import GraphAnalysisPanel from './components/GraphAnalysisPanel';
 import { INITIAL_GRAPH_DATA } from '../data/graph';
@@ -14,13 +14,12 @@ const DEFAULT_MODEL = {
 }
 
 export default function Index() {
-  const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
-  const [surroundingNodes, setSurroundingNodes] = useState<Node[]>([]);
   const [llamaContext, setLlamaContext] = useState<LlamaContext | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [initProgress, setInitProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const graphCanvasRef = useRef(null);
 
   const { downloadAndInitModel } = useModelDownload();
 
@@ -56,40 +55,18 @@ export default function Index() {
     }
   };
 
-  // When nodes are selected, find their immediate neighbors
-  const handleNodeSelect = (nodes: Node[]) => {
-    setSelectedNodes(nodes);
-    
-    // Find all nodes connected to selected nodes
-    const neighbors = new Set<Node>();
-    
-    INITIAL_GRAPH_DATA.edges.forEach(edge => {
-      const fromNode = INITIAL_GRAPH_DATA.nodes.find(n => n.id === edge.from);
-      const toNode = INITIAL_GRAPH_DATA.nodes.find(n => n.id === edge.to);
-      
-      if (!fromNode || !toNode) return;
-
-      // If either end is selected, add the other end to neighbors
-      if (nodes.some(n => n.id === edge.from)) {
-        neighbors.add(toNode);
-      }
-      if (nodes.some(n => n.id === edge.to)) {
-        neighbors.add(fromNode);
-      }
-    });
-
-    // Remove selected nodes from neighbors
-    nodes.forEach(n => neighbors.delete(n));
-    
-    setSurroundingNodes(Array.from(neighbors));
+  const handleFocusNode = (nodeId: string) => {
+    if (graphCanvasRef.current) {
+      graphCanvasRef.current.focusNode(nodeId);
+    }
   };
 
   return (
     <View style={styles.container}>
       <GraphCanvas 
+        ref={graphCanvasRef}
         nodes={INITIAL_GRAPH_DATA.nodes}
         edges={INITIAL_GRAPH_DATA.edges}
-        onNodesSelected={handleNodeSelect}
       />
       
       {/* Model loading overlay */}
@@ -114,10 +91,10 @@ export default function Index() {
       {/* Analysis panel overlay */}
       <View style={styles.analysisOverlay}>
         <GraphAnalysisPanel
-          selectedNodes={selectedNodes}
-          surroundingNodes={surroundingNodes}
+          nodes={INITIAL_GRAPH_DATA.nodes}
           edges={INITIAL_GRAPH_DATA.edges}
           llamaContext={llamaContext}
+          onFocusNode={handleFocusNode}
         />
       </View>
     </View>
