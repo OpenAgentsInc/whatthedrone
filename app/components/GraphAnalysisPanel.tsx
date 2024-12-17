@@ -1,5 +1,5 @@
 import { LlamaContext } from "llama.rn"
-import React, { useState, useRef, useEffect } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
     ActivityIndicator, Button, ScrollView, StyleSheet, Text, View
 } from "react-native"
@@ -99,7 +99,7 @@ export default function GraphAnalysisPanel({
       <View style={styles.contentContainer}>
         <View style={styles.logsSection}>
           <Text style={styles.sectionTitle}>Analysis Log</Text>
-          <ScrollView 
+          <ScrollView
             ref={logsScrollViewRef}
             style={styles.logsContainer}
             contentContainerStyle={styles.logsContent}
@@ -112,7 +112,7 @@ export default function GraphAnalysisPanel({
 
         <View style={styles.insightsSection}>
           <Text style={styles.sectionTitle}>Insights ({insights.length})</Text>
-          <ScrollView 
+          <ScrollView
             ref={insightsScrollViewRef}
             style={styles.insightsContainer}
             contentContainerStyle={styles.insightsContent}
@@ -145,7 +145,7 @@ export default function GraphAnalysisPanel({
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'transparent',
     borderRadius: 8,
     margin: 8,
     height: '50%',
