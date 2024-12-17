@@ -1,5 +1,11 @@
 import { GraphData } from './types';
-import { telegraphData, whiteHouseData, skojecData } from './sources';
+import { 
+  telegraphData,
+  whiteHouseData,
+  skojecData,
+  schumerData,
+  trumpData
+} from './sources';
 
 // Merge all nodes and edges from different sources
 function mergeGraphData(...graphDatas: GraphData[]): GraphData {
@@ -26,5 +32,7 @@ function mergeGraphData(...graphDatas: GraphData[]): GraphData {
 export const INITIAL_GRAPH_DATA = mergeGraphData(
   telegraphData,
   whiteHouseData,
-  skojecData
+  skojecData,
+  schumerData,
+  trumpData
 );
