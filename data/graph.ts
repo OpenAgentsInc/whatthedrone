@@ -4,7 +4,8 @@ import {
   whiteHouseData,
   skojecData,
   schumerData,
-  trumpData
+  trumpData,
+  kirbyData
 } from './sources';
 
 // Merge all nodes and edges from different sources
@@ -34,5 +35,6 @@ export const INITIAL_GRAPH_DATA = mergeGraphData(
   whiteHouseData,
   skojecData,
   schumerData,
-  trumpData
+  trumpData,
+  kirbyData
 );
