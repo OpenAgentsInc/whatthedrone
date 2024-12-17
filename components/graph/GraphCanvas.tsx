@@ -11,7 +11,7 @@ import { Edge, GraphRefs, LabelPosition, Node } from "./types"
 interface GraphCanvasProps {
   nodes: Node[];
   edges: Edge[];
-  onNodeSelect?: (node: Node | null) => void;
+  onNodesSelected?: (nodes: Node[]) => void;
 }
 
 interface TouchState {
@@ -33,7 +33,7 @@ const MIN_ZOOM = 4;
 const MAX_ZOOM = 12;
 const INITIAL_Z = 8;
 
-export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
+export function GraphCanvas({ nodes, edges, onNodesSelected }: GraphCanvasProps) {
   const isFocused = useIsFocused();
   const mountedRef = useRef(true);
   const refs = useRef<GraphRefs>({
@@ -41,6 +41,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     edges: [],
   });
   const [labelPositions, setLabelPositions] = useState<LabelPosition[]>([]);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   const touchState = useRef<TouchState>({
     previousTouches: {},
     previousDistance: null,
@@ -79,11 +80,12 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
         y,
         label: node.label,
         visible,
+        selected: selectedNodeIds.has(node.id),
       });
     });
 
     setLabelPositions(positions);
-  }, [nodes]);
+  }, [nodes, selectedNodeIds]);
 
   const animate = useCallback(() => {
     if (!mountedRef.current || !isFocused) {
@@ -95,6 +97,19 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
 
     try {
+      // Update node materials based on selection
+      nodes.forEach(node => {
+        const nodeMesh = refs.current.nodes[node.id];
+        if (nodeMesh && nodeMesh.material) {
+          const material = nodeMesh.material as THREE.MeshStandardMaterial;
+          if (selectedNodeIds.has(node.id)) {
+            material.emissive.setHex(0xff0000);
+          } else {
+            material.emissive.setHex(0x000000);
+          }
+        }
+      });
+
       refs.current.renderer.render(refs.current.scene, refs.current.camera);
       refs.current.gl.endFrameEXP();
       updateLabelPositions();
@@ -105,7 +120,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     } catch (error) {
       console.error("Error in animation loop:", error);
     }
-  }, [isFocused, updateLabelPositions]);
+  }, [isFocused, updateLabelPositions, nodes, selectedNodeIds]);
 
   const handleTap = useCallback((event: GestureResponderEvent) => {
     if (!refs.current.camera || !refs.current.renderer || !refs.current.scene) return;
@@ -134,13 +149,22 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
       if (nodeEntry) {
         const node = nodes.find(n => n.id === nodeEntry.id);
         if (node) {
-          onNodeSelect?.(node);
+          // Toggle selection
+          const newSelectedIds = new Set(selectedNodeIds);
+          if (newSelectedIds.has(node.id)) {
+            newSelectedIds.delete(node.id);
+          } else {
+            newSelectedIds.add(node.id);
+          }
+          setSelectedNodeIds(newSelectedIds);
+
+          // Notify parent with all selected nodes
+          const selectedNodes = nodes.filter(n => newSelectedIds.has(n.id));
+          onNodesSelected?.(selectedNodes);
         }
       }
-    } else {
-      onNodeSelect?.(null);
     }
-  }, [nodes, onNodeSelect]);
+  }, [nodes, selectedNodeIds, onNodesSelected]);
 
   const getDistance = (touches: { [key: string]: { x: number; y: number } }) => {
     const touchArray = Object.values(touches);
@@ -275,7 +299,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
                 left: label.x,
                 top: label.y,
                 opacity: label.visible ? 1 : 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
+                backgroundColor: label.selected ? 'rgba(255,0,0,0.5)' : 'rgba(0,0,0,0.5)',
                 transform: [
                   { translateX: -50 }, // Center horizontally
                 ],
