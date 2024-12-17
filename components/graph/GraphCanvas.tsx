@@ -1,6 +1,6 @@
 import { ExpoWebGLRenderingContext, GLView } from "expo-gl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View, Text, Dimensions, PanResponder, GestureResponderEvent, PanResponderGestureState } from "react-native";
+import { StyleSheet, View, Text, Dimensions, PanResponder, GestureResponderEvent } from "react-native";
 import * as THREE from "three";
 import { useIsFocused } from "@react-navigation/native";
 import { Node, Edge, GraphRefs, LabelPosition } from "./types";
@@ -36,6 +36,9 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     previousDistance: null,
     previousAngle: null,
   });
+
+  // Keep track of camera target for panning
+  const cameraTarget = useRef(new THREE.Vector3(0, 0, 0));
 
   const updateLabelPositions = useCallback(() => {
     if (!refs.current.camera || !refs.current.renderer) return;
@@ -177,34 +180,31 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
         const touchCount = Object.keys(currentTouches).length;
 
         if (touchCount === 1) {
-          // Pan
-          const dx = gestureState.dx * 0.05;
-          const dy = gestureState.dy * 0.05;
+          // Simple panning - move the camera target
+          const dx = gestureState.dx * 0.02;
+          const dy = gestureState.dy * 0.02;
           
-          refs.current.camera.position.x -= dx;
-          refs.current.camera.position.y += dy;
+          // Update camera target
+          cameraTarget.current.x -= dx;
+          cameraTarget.current.y += dy;
+
+          // Move camera while maintaining its relative position
+          refs.current.camera.position.x = cameraTarget.current.x;
+          refs.current.camera.position.y = cameraTarget.current.y;
+          refs.current.camera.position.z = 8; // Keep constant z distance
+          refs.current.camera.lookAt(cameraTarget.current);
+
         } else if (touchCount === 2) {
           // Pinch to zoom
           const currentDistance = getDistance(currentTouches);
-          const currentAngle = getAngle(currentTouches);
-
           if (touchState.current.previousDistance && currentDistance) {
             const scale = currentDistance / touchState.current.previousDistance;
-            refs.current.camera.position.z *= (1 / scale);
+            refs.current.camera.position.z = Math.max(2, Math.min(20, refs.current.camera.position.z * (1 / scale)));
           }
-
-          // Rotation
-          if (touchState.current.previousAngle && currentAngle) {
-            const angleChange = currentAngle - touchState.current.previousAngle;
-            refs.current.camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angleChange);
-          }
-
           touchState.current.previousDistance = currentDistance;
-          touchState.current.previousAngle = currentAngle;
         }
 
         touchState.current.previousTouches = currentTouches;
-        refs.current.camera.lookAt(0, 0, 0);
       },
 
       onPanResponderRelease: () => {
