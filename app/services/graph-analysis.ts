@@ -12,9 +12,27 @@ REASONING: 1. Multiple military bases report sightings
 3. Consistent timing and behavior
 CONFIDENCE: 85
 NODES: military-base-1, military-base-2, drone-sighting-1
-NEXT_NODE: node-id-to-analyze-next
+NEXT_NODE: [Pick an actual node from the graph to analyze next, or write SYNTHESIZE if you've generated 3 insights]
 
-Your response MUST contain all these sections with the exact labels.`
+Your response MUST contain all these sections with the exact labels.
+After generating 3 insights, write SYNTHESIZE as the NEXT_NODE to create a higher-level insight.`
+
+const SYNTHESIS_PROMPT = `You are synthesizing insights about drone activities.
+Based on these previous insights, create a higher-level understanding.
+
+Previous insights:
+{insights}
+
+Create a new, synthesized insight that combines and elevates these observations.
+Format your response EXACTLY like this:
+
+INSIGHT: [A higher-level insight that connects the patterns]
+REASONING: 1. [First connection]
+2. [Second connection]
+3. [Higher-level implication]
+CONFIDENCE: [0-100]
+NODES: [All relevant nodes]
+NEXT_NODE: DONE`
 
 export default class GraphAnalysisService {
   private context: LlamaContext
@@ -79,7 +97,20 @@ Think step by step:
 5. What might this suggest about drone activities?
 
 Remember to format your response EXACTLY as shown in the example above.
+After 3 insights, write SYNTHESIZE as the NEXT_NODE value.
 `
+  }
+
+  private buildSynthesisPrompt(insights: GraphInsight[]): string {
+    const insightsText = insights.map((insight, i) => `
+Insight ${i + 1}: ${insight.description}
+Reasoning:
+${insight.reasoning.join('\n')}
+Confidence: ${insight.confidence}%
+Related Nodes: ${insight.relatedNodes.join(', ')}
+`).join('\n')
+
+    return SYNTHESIS_PROMPT.replace('{insights}', insightsText)
   }
 
   private parseInsightFromResponse(response: string): {
@@ -88,7 +119,6 @@ Remember to format your response EXACTLY as shown in the example above.
   } {
     console.log('Parsing response:', response)
     try {
-      // More lenient regex patterns that can handle multiline content
       const insightMatch = response.match(/INSIGHT:\s*(.+?)(?=\nREASONING:)/s)
       const reasoningMatch = response.match(/REASONING:\s*([\s\S]+?)(?=\nCONFIDENCE:)/s)
       const confidenceMatch = response.match(/CONFIDENCE:\s*(\d+)/s)
@@ -174,6 +204,11 @@ Remember to format your response EXACTLY as shown in the example above.
     })
   }
 
+  private getNextUnvisitedNode(nodes: Node[], visitedNodes: Set<string>): Node | null {
+    const unvisited = nodes.filter(n => !visitedNodes.has(n.id))
+    return unvisited.length > 0 ? unvisited[0] : null
+  }
+
   async analyzeGraph(
     nodes: Node[],
     edges: Edge[],
@@ -185,15 +220,19 @@ Remember to format your response EXACTLY as shown in the example above.
     const graphContext = this.formatGraphForLLM(nodes, edges)
     let currentNodeId: string | null = nodes[0]?.id || null
     let visitedNodes = new Set<string>()
+    let insightCount = 0
 
     console.log('Initial graph context:', graphContext)
     this.onLog('Beginning graph analysis...')
 
-    while (currentNodeId && visitedNodes.size < nodes.length) {
+    while (currentNodeId && insightCount < 3) {
       const currentNode = nodes.find(n => n.id === currentNodeId)
       if (!currentNode) {
         console.log('Could not find node:', currentNodeId)
-        break
+        const nextNode = this.getNextUnvisitedNode(nodes, visitedNodes)
+        if (!nextNode) break
+        currentNodeId = nextNode.id
+        continue
       }
 
       console.log('Analyzing node:', currentNode)
@@ -212,21 +251,26 @@ Remember to format your response EXACTLY as shown in the example above.
         console.log('Adding insight:', insight)
         this.onLog(`Found insight: ${insight.description}`)
         insights.push(insight)
+        insightCount++
+      }
+
+      if (nextNodeId === 'SYNTHESIZE' || insightCount >= 3) {
+        this.onLog('Synthesizing insights...')
+        const synthesisPrompt = this.buildSynthesisPrompt(insights)
+        const synthesisResponse = await this.getCompletion(synthesisPrompt)
+        const { insight: synthesizedInsight } = this.parseInsightFromResponse(synthesisResponse)
+        
+        if (synthesizedInsight) {
+          this.onLog('Generated synthesis insight!')
+          insights.push(synthesizedInsight)
+        }
+        break
       }
 
       currentNodeId = nextNodeId
-      if (currentNodeId && visitedNodes.has(currentNodeId)) {
-        console.log('Already visited node:', currentNodeId)
-        // If we've seen this node before, pick a random unvisited node
-        const unvisitedNodes = nodes.filter(n => !visitedNodes.has(n.id))
-        console.log('Unvisited nodes:', unvisitedNodes)
-        if (unvisitedNodes.length > 0) {
-          currentNodeId = unvisitedNodes[0].id
-          console.log('Picked new node:', currentNodeId)
-        } else {
-          console.log('No more nodes to visit')
-          currentNodeId = null
-        }
+      if (!currentNodeId || visitedNodes.has(currentNodeId)) {
+        const nextNode = this.getNextUnvisitedNode(nodes, visitedNodes)
+        currentNodeId = nextNode?.id || null
       }
     }
 
