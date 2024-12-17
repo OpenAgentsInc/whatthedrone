@@ -1,12 +1,12 @@
 import { LlamaContext } from 'llama.rn'
-import { GraphNode, GraphEdge, GraphInsight } from '../types/graph'
+import { Node, Edge, GraphInsight } from '../types/graph'
 
 const ANALYSIS_SYSTEM_PROMPT = `You are analyzing a knowledge graph about drone activities.
 Focus on finding non-obvious connections and patterns.
 Think carefully and explain your reasoning step by step.
 Format your response exactly as requested.`
 
-export class GraphAnalysisService {
+export default class GraphAnalysisService {
   private context: LlamaContext
   private attempts: number
   private temperature: number
@@ -26,17 +26,17 @@ export class GraphAnalysisService {
     this.maxTokens = config.maxTokens || 1000
   }
 
-  private formatGraphForLLM(nodes: GraphNode[], edges: GraphEdge[]): string {
+  private formatGraphForLLM(nodes: Node[], edges: Edge[]): string {
     return `
 Nodes:
-${nodes.map(n => `- ${n.label} (${n.type}): ${n.metadata?.description || ''}`).join('\\n')}
+${nodes.map(n => `- ${n.label} (${n.type}): ${n.metadata?.description || ''}`).join('\n')}
 
 Connections:
 ${edges.map(e => {
       const from = nodes.find(n => n.id === e.from)
       const to = nodes.find(n => n.id === e.to)
       return `- ${from?.label} ${e.type} ${to?.label}`
-    }).join('\\n')}
+    }).join('\n')}
 `
   }
 
@@ -51,7 +51,7 @@ Graph context:
 ${graphContext}
 
 Previous insights found:
-${previousInsights.map(i => `- ${i.description}`).join('\\n')}
+${previousInsights.map(i => `- ${i.description}`).join('\n')}
 
 Attempt ${attempt + 1}/${this.attempts}:
 
@@ -83,7 +83,7 @@ NODES: [list of involved node IDs]
 
       const description = insightMatch[1].trim()
       const reasoning = reasoningMatch[1]
-        .split('\\n')
+        .split('\n')
         .map(s => s.trim())
         .filter(s => s.length > 0)
       const confidence = parseInt(confidenceMatch[1])
@@ -135,8 +135,8 @@ NODES: [list of involved node IDs]
   }
 
   async analyzeGraphSection(
-    nodes: GraphNode[],
-    edges: GraphEdge[]
+    nodes: Node[],
+    edges: Edge[]
   ): Promise<GraphInsight[]> {
     const insights: GraphInsight[] = []
     const graphContext = this.formatGraphForLLM(nodes, edges)
