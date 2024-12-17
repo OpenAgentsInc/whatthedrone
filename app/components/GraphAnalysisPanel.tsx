@@ -1,5 +1,5 @@
 import { LlamaContext } from "llama.rn"
-import React, { useState } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import {
     ActivityIndicator, Button, ScrollView, StyleSheet, Text, View
 } from "react-native"
@@ -23,6 +23,15 @@ export default function GraphAnalysisPanel({
   const [logs, setLogs] = useState<string[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const logsScrollViewRef = useRef<ScrollView>(null)
+  const insightsScrollViewRef = useRef<ScrollView>(null)
+
+  // Auto-scroll logs to bottom when new logs are added
+  useEffect(() => {
+    if (logsScrollViewRef.current) {
+      logsScrollViewRef.current.scrollToEnd({ animated: true })
+    }
+  }, [logs])
 
   async function beginAnalysis() {
     if (!llamaContext) {
@@ -68,29 +77,32 @@ export default function GraphAnalysisPanel({
 
   return (
     <View style={styles.container}>
-      <Button
-        title="Begin Analysis"
-        onPress={beginAnalysis}
-        disabled={isAnalyzing || !llamaContext}
-      />
+      <View style={styles.header}>
+        <Button
+          title="Begin Analysis"
+          onPress={beginAnalysis}
+          disabled={isAnalyzing || !llamaContext}
+        />
 
-      {isAnalyzing && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Analyzing graph...</Text>
-        </View>
-      )}
+        {isAnalyzing && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" />
+            <Text style={styles.loadingText}>Analyzing graph...</Text>
+          </View>
+        )}
 
-      {error && (
-        <Text style={styles.error}>{error}</Text>
-      )}
+        {error && (
+          <Text style={styles.error}>{error}</Text>
+        )}
+      </View>
 
       <View style={styles.contentContainer}>
         <View style={styles.logsSection}>
           <Text style={styles.sectionTitle}>Analysis Log</Text>
           <ScrollView 
+            ref={logsScrollViewRef}
             style={styles.logsContainer}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            contentContainerStyle={styles.logsContent}
           >
             {logs.map((log, i) => (
               <Text key={i} style={styles.logEntry}>{log}</Text>
@@ -101,8 +113,9 @@ export default function GraphAnalysisPanel({
         <View style={styles.insightsSection}>
           <Text style={styles.sectionTitle}>Insights ({insights.length})</Text>
           <ScrollView 
+            ref={insightsScrollViewRef}
             style={styles.insightsContainer}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            contentContainerStyle={styles.insightsContent}
           >
             {insights.map((insight, i) => (
               <View key={i} style={styles.insightCard}>
@@ -136,29 +149,44 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     margin: 8,
     height: '50%',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  header: {
+    marginBottom: 8,
   },
   contentContainer: {
-    marginTop: 16,
     flex: 1,
+    minHeight: 0, // Important for nested scrolling
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
   },
   sectionTitle: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   logsSection: {
-    height: '30%',
-    marginBottom: 16,
+    height: 100, // Fixed height for logs section
+    minHeight: 100,
+    display: 'flex',
+    flexDirection: 'column',
   },
   logsContainer: {
     backgroundColor: '#222',
-    padding: 8,
     borderRadius: 8,
     flex: 1,
   },
+  logsContent: {
+    padding: 8,
+  },
   insightsSection: {
-    flex: 1,
+    flex: 1, // Takes remaining space
+    minHeight: 0, // Important for nested scrolling
+    display: 'flex',
+    flexDirection: 'column',
   },
   logEntry: {
     color: '#888',
@@ -167,7 +195,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     alignItems: 'center',
-    padding: 16,
+    padding: 8,
   },
   loadingText: {
     marginTop: 8,
@@ -179,10 +207,15 @@ const styles = StyleSheet.create({
   },
   insightsContainer: {
     flex: 1,
+    backgroundColor: '#222',
+    borderRadius: 8,
+  },
+  insightsContent: {
+    padding: 8,
   },
   insightCard: {
-    backgroundColor: '#222',
-    padding: 16,
+    backgroundColor: '#333',
+    padding: 12,
     borderRadius: 8,
     marginBottom: 8,
   },
