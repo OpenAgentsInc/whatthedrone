@@ -86,34 +86,44 @@ export default function GraphAnalysisPanel({
       )}
 
       <View style={styles.contentContainer}>
-
-        <ScrollView style={styles.logsContainer}>
+        <View style={styles.logsSection}>
           <Text style={styles.sectionTitle}>Analysis Log</Text>
-          {logs.map((log, i) => (
-            <Text key={i} style={styles.logEntry}>{log}</Text>
-          ))}
-        </ScrollView>
-        <ScrollView style={styles.insightsContainer}>
+          <ScrollView 
+            style={styles.logsContainer}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          >
+            {logs.map((log, i) => (
+              <Text key={i} style={styles.logEntry}>{log}</Text>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.insightsSection}>
           <Text style={styles.sectionTitle}>Insights ({insights.length})</Text>
-          {insights.map((insight, i) => (
-            <View key={i} style={styles.insightCard}>
-              <Text style={styles.insightTitle}>{insight.description}</Text>
-              <Text style={styles.confidence}>Confidence: {insight.confidence}%</Text>
+          <ScrollView 
+            style={styles.insightsContainer}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          >
+            {insights.map((insight, i) => (
+              <View key={i} style={styles.insightCard}>
+                <Text style={styles.insightTitle}>{insight.description}</Text>
+                <Text style={styles.confidence}>Confidence: {insight.confidence}%</Text>
 
-              <Text style={styles.reasoningTitle}>Reasoning:</Text>
-              {insight.reasoning.map((step, j) => (
-                <Text key={j} style={styles.reasoningStep}>
-                  {j + 1}. {step}
+                <Text style={styles.reasoningTitle}>Reasoning:</Text>
+                {insight.reasoning.map((step, j) => (
+                  <Text key={j} style={styles.reasoningStep}>
+                    {j + 1}. {step}
+                  </Text>
+                ))}
+
+                <Text style={styles.nodesTitle}>Related Nodes:</Text>
+                <Text style={styles.nodes}>
+                  {insight.relatedNodes.join(', ')}
                 </Text>
-              ))}
-
-              <Text style={styles.nodesTitle}>Related Nodes:</Text>
-              <Text style={styles.nodes}>
-                {insight.relatedNodes.join(', ')}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       </View>
     </View>
   )
@@ -125,10 +135,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderRadius: 8,
     margin: 8,
-    height: '90%',
+    height: '50%',
   },
   contentContainer: {
-    flexDirection: 'row',
     marginTop: 16,
     flex: 1,
   },
@@ -138,12 +147,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
+  logsSection: {
+    height: '30%',
+    marginBottom: 16,
+  },
   logsContainer: {
-    flex: 1,
-    marginRight: 8,
     backgroundColor: '#222',
     padding: 8,
     borderRadius: 8,
+    flex: 1,
+  },
+  insightsSection: {
+    flex: 1,
   },
   logEntry: {
     color: '#888',
@@ -163,8 +178,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   insightsContainer: {
-    flex: 2,
-    marginLeft: 8,
+    flex: 1,
   },
   insightCard: {
     backgroundColor: '#222',
