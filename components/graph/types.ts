@@ -2,15 +2,26 @@ import * as THREE from 'three';
 
 export interface Node {
   id: string;
-  type: string;
   label: string;
-  position: THREE.Vector3;
+  type: string;
+  metadata?: any;
 }
 
 export interface Edge {
-  id: string;
   from: string;
   to: string;
+  type: string;
+  metadata?: any;
+}
+
+export interface GraphRefs {
+  gl?: WebGLRenderingContext;
+  scene?: THREE.Scene;
+  camera?: THREE.PerspectiveCamera;
+  renderer?: THREE.WebGLRenderer;
+  nodes: { [key: string]: THREE.Mesh };
+  edges: THREE.Line[];
+  animation?: number;
 }
 
 export interface LabelPosition {
@@ -19,14 +30,5 @@ export interface LabelPosition {
   y: number;
   label: string;
   visible: boolean;
-}
-
-export interface GraphRefs {
-  gl?: ExpoWebGLRenderingContext;
-  renderer?: THREE.WebGLRenderer;
-  scene?: THREE.Scene;
-  camera?: THREE.PerspectiveCamera;
-  nodes: { [key: string]: THREE.Mesh };
-  edges: THREE.LineSegments[];
-  animation?: number;
+  selected?: boolean;
 }
