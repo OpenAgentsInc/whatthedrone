@@ -87,7 +87,9 @@ export async function buildCompleteGraph(): Promise<GraphData> {
   const sourceFiles = [
     'telegraph-mayorkas-drone-powers.md',
     'white-house-statement.md',
-    'skojec-article.md'
+    'skojec-article.md',
+    'schumer-interview.md',
+    'trump-comments.md'
   ];
 
   let graph: GraphData = {
@@ -108,3 +110,5 @@ export async function buildCompleteGraph(): Promise<GraphData> {
 export * from './sources/telegraph';
 export * from './sources/white-house';
 export * from './sources/skojec';
+export * from './sources/schumer';
+export * from './sources/trump';
