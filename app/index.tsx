@@ -3,23 +3,18 @@ import { useState } from 'react';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
 import { GraphAnalysisPanel } from '../components/GraphAnalysisPanel';
 import { INITIAL_GRAPH_DATA } from '../data/graph';
-import { GraphNode, GraphEdge } from '../types/graph';
-import { useStores } from '@/models';
-import { observer } from 'mobx-react-lite';
+import { Node, Edge } from '../types/graph';
 
-export default observer(function Index() {
-  const { modelStore } = useStores();
-  const context = modelStore.context;
-
-  const [selectedNodes, setSelectedNodes] = useState<GraphNode[]>([]);
-  const [surroundingNodes, setSurroundingNodes] = useState<GraphNode[]>([]);
+export default function Index() {
+  const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
+  const [surroundingNodes, setSurroundingNodes] = useState<Node[]>([]);
 
   // When nodes are selected, find their immediate neighbors
-  const handleNodeSelect = (nodes: GraphNode[]) => {
+  const handleNodeSelect = (nodes: Node[]) => {
     setSelectedNodes(nodes);
     
     // Find all nodes connected to selected nodes
-    const neighbors = new Set<GraphNode>();
+    const neighbors = new Set<Node>();
     
     INITIAL_GRAPH_DATA.edges.forEach(edge => {
       const fromNode = INITIAL_GRAPH_DATA.nodes.find(n => n.id === edge.from);
@@ -56,12 +51,12 @@ export default observer(function Index() {
           selectedNodes={selectedNodes}
           surroundingNodes={surroundingNodes}
           edges={INITIAL_GRAPH_DATA.edges}
-          llamaContext={context}
+          llamaContext={null} // TODO: Add Llama context
         />
       </View>
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {
