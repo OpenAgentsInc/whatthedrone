@@ -8,8 +8,10 @@ import useModelDownload from './components/useModelDownload';
 import type { LlamaContext } from 'llama.rn';
 
 // Model details
-const MODEL_REPO = "meta-llama/Llama-3.2-3B-Instruct"
-const MODEL_FILE = "model.gguf"
+const DEFAULT_MODEL = {
+  repoId: 'hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF',
+  filename: 'llama-3.2-3b-instruct-q4_k_m.gguf'
+}
 
 export default function Index() {
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
@@ -33,8 +35,8 @@ export default function Index() {
       setError(null);
 
       const context = await downloadAndInitModel(
-        MODEL_REPO,
-        MODEL_FILE,
+        DEFAULT_MODEL.repoId,
+        DEFAULT_MODEL.filename,
         (progress) => {
           console.log('Download:', progress.percentage);
           setDownloadProgress(progress.percentage);
