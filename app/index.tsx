@@ -1,13 +1,13 @@
 import { View, StyleSheet } from 'react-native';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
-import { INITIAL_GRAPH } from '../data/initial-graph';
+import { INITIAL_GRAPH_DATA } from '../data/graph';
 
 export default function Index() {
   return (
     <View style={styles.container}>
       <GraphCanvas 
-        nodes={INITIAL_GRAPH.nodes}
-        edges={INITIAL_GRAPH.edges}
+        nodes={INITIAL_GRAPH_DATA.nodes}
+        edges={INITIAL_GRAPH_DATA.edges}
       />
     </View>
   );
