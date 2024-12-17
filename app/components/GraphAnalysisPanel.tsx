@@ -30,6 +30,9 @@ export default function GraphAnalysisPanel({
       return
     }
 
+    console.log('Beginning analysis with nodes:', nodes.length)
+    console.log('and edges:', edges.length)
+
     setIsAnalyzing(true)
     setError(null)
     setInsights([])
@@ -40,6 +43,7 @@ export default function GraphAnalysisPanel({
         attempts: 8,
         temperature: 0.7,
         onLog: (message: string, nodeId?: string) => {
+          console.log('Log:', message, nodeId)
           setLogs(prev => [...prev, message])
           if (nodeId && onFocusNode) {
             onFocusNode(nodeId)
@@ -48,8 +52,14 @@ export default function GraphAnalysisPanel({
       })
 
       const allInsights = await analysisService.analyzeGraph(nodes, edges)
-      setInsights(prev => [...prev, ...allInsights])
+      console.log('Analysis complete, got insights:', allInsights)
+      setInsights(prev => {
+        console.log('Previous insights:', prev)
+        console.log('Adding new insights:', allInsights)
+        return [...prev, ...allInsights]
+      })
     } catch (err) {
+      console.error('Analysis failed:', err)
       setError(err instanceof Error ? err.message : 'Analysis failed')
     } finally {
       setIsAnalyzing(false)
@@ -84,7 +94,7 @@ export default function GraphAnalysisPanel({
         </ScrollView>
 
         <ScrollView style={styles.insightsContainer}>
-          <Text style={styles.sectionTitle}>Insights</Text>
+          <Text style={styles.sectionTitle}>Insights ({insights.length})</Text>
           {insights.map((insight, i) => (
             <View key={i} style={styles.insightCard}>
               <Text style={styles.insightTitle}>{insight.description}</Text>
