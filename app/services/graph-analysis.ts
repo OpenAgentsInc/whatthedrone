@@ -11,6 +11,7 @@ export default class GraphAnalysisService {
   private attempts: number
   private temperature: number
   private maxTokens: number
+  private onLog: (message: string, nodeId?: string) => void
 
   constructor(
     context: LlamaContext,
@@ -18,12 +19,14 @@ export default class GraphAnalysisService {
       attempts?: number
       temperature?: number
       maxTokens?: number
+      onLog?: (message: string, nodeId?: string) => void
     } = {}
   ) {
     this.context = context
     this.attempts = config.attempts || 8
     this.temperature = config.temperature || 0.7
     this.maxTokens = config.maxTokens || 1000
+    this.onLog = config.onLog || (() => {})
   }
 
   private formatGraphForLLM(nodes: Node[], edges: Edge[]): string {
@@ -42,18 +45,21 @@ ${edges.map(e => {
 
   private buildPrompt(
     graphContext: string,
-    attempt: number,
+    currentNode: Node | null,
     previousInsights: GraphInsight[]
   ): string {
+    const nodeContext = currentNode 
+      ? `\nCurrently focusing on node: ${currentNode.label} (${currentNode.type})`
+      : '';
+
     return `${ANALYSIS_SYSTEM_PROMPT}
 
 Graph context:
 ${graphContext}
+${nodeContext}
 
 Previous insights found:
 ${previousInsights.map(i => `- ${i.description}`).join('\n')}
-
-Attempt ${attempt + 1}/${this.attempts}:
 
 Think step by step:
 1. What entities are most connected?
@@ -67,18 +73,23 @@ INSIGHT: [one sentence description]
 REASONING: [numbered steps]
 CONFIDENCE: [0-100]
 NODES: [list of involved node IDs]
+NEXT_NODE: [ID of next node to analyze or DONE if complete]
 `
   }
 
-  private parseInsightFromResponse(response: string): GraphInsight | null {
+  private parseInsightFromResponse(response: string): {
+    insight: GraphInsight | null,
+    nextNodeId: string | null
+  } {
     try {
       const insightMatch = response.match(/INSIGHT: (.+)/)
       const reasoningMatch = response.match(/REASONING: ([\\s\\S]+?)\\nCONFIDENCE:/)
       const confidenceMatch = response.match(/CONFIDENCE: (\\d+)/)
       const nodesMatch = response.match(/NODES: (.+)/)
+      const nextNodeMatch = response.match(/NEXT_NODE: (.+)/)
 
-      if (!insightMatch || !reasoningMatch || !confidenceMatch || !nodesMatch) {
-        return null
+      if (!insightMatch || !reasoningMatch || !confidenceMatch || !nodesMatch || !nextNodeMatch) {
+        return { insight: null, nextNodeId: null }
       }
 
       const description = insightMatch[1].trim()
@@ -91,16 +102,20 @@ NODES: [list of involved node IDs]
         .split(',')
         .map(s => s.trim())
         .filter(s => s.length > 0)
+      const nextNodeId = nextNodeMatch[1].trim()
 
       return {
-        description,
-        reasoning,
-        confidence,
-        relatedNodes: nodes,
+        insight: {
+          description,
+          reasoning,
+          confidence,
+          relatedNodes: nodes,
+        },
+        nextNodeId: nextNodeId === 'DONE' ? null : nextNodeId
       }
     } catch (e) {
       console.error('Failed to parse insight:', e)
-      return null
+      return { insight: null, nextNodeId: null }
     }
   }
 
@@ -134,31 +149,47 @@ NODES: [list of involved node IDs]
     })
   }
 
-  async analyzeGraphSection(
+  async analyzeGraph(
     nodes: Node[],
-    edges: Edge[]
+    edges: Edge[],
   ): Promise<GraphInsight[]> {
     const insights: GraphInsight[] = []
     const graphContext = this.formatGraphForLLM(nodes, edges)
+    let currentNodeId: string | null = nodes[0]?.id || null
+    let visitedNodes = new Set<string>()
 
-    console.log("we have graphContext:", graphContext)
+    this.onLog('Beginning graph analysis...')
 
-    for (let i = 0; i < this.attempts; i++) {
-      const prompt = this.buildPrompt(graphContext, i, insights)
-      console.log('Prompt:', prompt)
+    while (currentNodeId && visitedNodes.size < nodes.length) {
+      const currentNode = nodes.find(n => n.id === currentNodeId)
+      if (!currentNode) break
+
+      this.onLog(`Analyzing node: ${currentNode.label}`, currentNode.id)
+      visitedNodes.add(currentNodeId)
+
+      const prompt = this.buildPrompt(graphContext, currentNode, insights)
       const response = await this.getCompletion(prompt)
-      console.log('Response:', response)
+      
+      const { insight, nextNodeId } = this.parseInsightFromResponse(response)
+      
+      if (insight && insight.confidence > 70) {
+        this.onLog(`Found insight: ${insight.description}`)
+        insights.push(insight)
+      }
 
-      const newInsight = this.parseInsightFromResponse(response)
-      console.log('New insight:', newInsight)
-
-
-
-      if (newInsight && newInsight.confidence > 70) {
-        insights.push(newInsight)
+      currentNodeId = nextNodeId
+      if (currentNodeId && visitedNodes.has(currentNodeId)) {
+        // If we've seen this node before, pick a random unvisited node
+        const unvisitedNodes = nodes.filter(n => !visitedNodes.has(n.id))
+        if (unvisitedNodes.length > 0) {
+          currentNodeId = unvisitedNodes[0].id
+        } else {
+          currentNodeId = null
+        }
       }
     }
 
+    this.onLog('Analysis complete!')
     return this.deduplicateInsights(insights)
   }
 }
