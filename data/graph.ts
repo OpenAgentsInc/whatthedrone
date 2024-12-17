@@ -47,7 +47,7 @@ function generatePosition(index: number, total: number, radius: number = 5): Vec
 // Initial graph data from telegraph-mayorkas-drone-powers.md
 export const INITIAL_GRAPH_DATA: GraphData = {
   nodes: [
-    // Source document
+    // Source documents
     {
       id: 'telegraph_article_1',
       type: 'source',
@@ -59,13 +59,23 @@ export const INITIAL_GRAPH_DATA: GraphData = {
         url: '[Telegraph Article]'
       }
     },
+    {
+      id: 'white_house_statement_1',
+      type: 'source',
+      label: 'White House Statement on Drone Sightings',
+      position: new Vector3(2, 0, 0),
+      metadata: {
+        date: '2024-12-16',
+        url: 'https://x.com/UAPJames/status/1868794505769709748'
+      }
+    },
 
     // People
     {
       id: 'mayorkas',
       type: 'person',
       label: 'Alejandro Mayorkas',
-      position: generatePosition(0, 8, 3),
+      position: generatePosition(0, 9, 3),
       metadata: {
         role: 'Homeland Security Secretary'
       }
@@ -74,7 +84,7 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'hochul',
       type: 'person',
       label: 'Kathy Hochul',
-      position: generatePosition(1, 8, 3),
+      position: generatePosition(1, 9, 3),
       metadata: {
         role: 'New York Governor'
       }
@@ -83,7 +93,7 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'christie',
       type: 'person',
       label: 'Chris Christie',
-      position: generatePosition(2, 8, 3),
+      position: generatePosition(2, 9, 3),
       metadata: {
         role: 'Former New Jersey Governor'
       }
@@ -92,9 +102,18 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'biden',
       type: 'person',
       label: 'Joe Biden',
-      position: generatePosition(3, 8, 3),
+      position: generatePosition(3, 9, 3),
       metadata: {
         role: 'President'
+      }
+    },
+    {
+      id: 'kirby',
+      type: 'person',
+      label: 'John Kirby',
+      position: generatePosition(4, 9, 3),
+      metadata: {
+        role: 'White House National Security Council Coordinator'
       }
     },
 
@@ -103,13 +122,19 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'dhs',
       type: 'organization',
       label: 'Department of Homeland Security',
-      position: generatePosition(4, 8, 3)
+      position: generatePosition(5, 9, 3)
     },
     {
       id: 'secret_service',
       type: 'organization',
       label: 'US Secret Service',
-      position: generatePosition(5, 8, 3)
+      position: generatePosition(6, 9, 3)
+    },
+    {
+      id: 'law_enforcement',
+      type: 'organization',
+      label: 'Law Enforcement Agencies',
+      position: generatePosition(7, 9, 3)
     },
 
     // Places
@@ -117,7 +142,7 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'stewart_airport',
       type: 'place',
       label: 'Stewart International Airport',
-      position: generatePosition(6, 8, 3),
+      position: generatePosition(8, 9, 3),
       metadata: {
         location: '60 miles north of New York City'
       }
@@ -126,7 +151,13 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'east_coast',
       type: 'place',
       label: 'East Coast',
-      position: generatePosition(7, 8, 3)
+      position: generatePosition(0, 5, 5)
+    },
+    {
+      id: 'new_jersey',
+      type: 'place',
+      label: 'New Jersey',
+      position: generatePosition(1, 5, 5)
     },
 
     // Topics
@@ -134,13 +165,19 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'drone_sightings',
       type: 'topic',
       label: 'Drone Sightings',
-      position: generatePosition(0, 4, 5)
+      position: generatePosition(2, 5, 5)
     },
     {
       id: 'drone_powers',
       type: 'topic',
       label: 'Drone Countermeasure Powers',
-      position: generatePosition(1, 4, 5)
+      position: generatePosition(3, 5, 5)
+    },
+    {
+      id: 'commercial_drones',
+      type: 'topic',
+      label: 'Commercial Drones',
+      position: generatePosition(4, 5, 5)
     },
 
     // Theories
@@ -148,18 +185,24 @@ export const INITIAL_GRAPH_DATA: GraphData = {
       id: 'theory_china',
       type: 'theory',
       label: 'Chinese Origin Theory',
-      position: generatePosition(2, 4, 5)
+      position: generatePosition(0, 4, 7)
     },
     {
       id: 'theory_russia',
       type: 'theory',
       label: 'Russian Origin Theory',
-      position: generatePosition(3, 4, 5)
+      position: generatePosition(1, 4, 7)
+    },
+    {
+      id: 'theory_misidentification',
+      type: 'theory',
+      label: 'Misidentification Theory',
+      position: generatePosition(2, 4, 7)
     }
   ],
   
   edges: [
-    // Source connections
+    // Source connections - Telegraph article
     { id: 'e1', from: 'telegraph_article_1', to: 'mayorkas', type: 'mentions', sourceId: 'telegraph_article_1' },
     { id: 'e2', from: 'telegraph_article_1', to: 'hochul', type: 'mentions', sourceId: 'telegraph_article_1' },
     { id: 'e3', from: 'telegraph_article_1', to: 'christie', type: 'mentions', sourceId: 'telegraph_article_1' },
@@ -183,6 +226,17 @@ export const INITIAL_GRAPH_DATA: GraphData = {
     
     // Theory connections
     { id: 'e13', from: 'drone_sightings', to: 'theory_china', type: 'related_to', sourceId: 'telegraph_article_1' },
-    { id: 'e14', from: 'drone_sightings', to: 'theory_russia', type: 'related_to', sourceId: 'telegraph_article_1' }
+    { id: 'e14', from: 'drone_sightings', to: 'theory_russia', type: 'related_to', sourceId: 'telegraph_article_1' },
+
+    // White House Statement connections
+    { id: 'e15', from: 'white_house_statement_1', to: 'kirby', type: 'mentions', sourceId: 'white_house_statement_1' },
+    { id: 'e16', from: 'white_house_statement_1', to: 'new_jersey', type: 'mentions', sourceId: 'white_house_statement_1' },
+    { id: 'e17', from: 'white_house_statement_1', to: 'commercial_drones', type: 'mentions', sourceId: 'white_house_statement_1' },
+    { id: 'e18', from: 'white_house_statement_1', to: 'law_enforcement', type: 'mentions', sourceId: 'white_house_statement_1' },
+    { id: 'e19', from: 'white_house_statement_1', to: 'theory_misidentification', type: 'supports', sourceId: 'white_house_statement_1' },
+    { id: 'e20', from: 'kirby', to: 'theory_misidentification', type: 'supports', sourceId: 'white_house_statement_1' },
+    { id: 'e21', from: 'commercial_drones', to: 'drone_sightings', type: 'related_to', sourceId: 'white_house_statement_1' },
+    { id: 'e22', from: 'law_enforcement', to: 'drone_sightings', type: 'related_to', sourceId: 'white_house_statement_1' },
+    { id: 'e23', from: 'new_jersey', to: 'east_coast', type: 'located_in', sourceId: 'white_house_statement_1' }
   ]
 };
