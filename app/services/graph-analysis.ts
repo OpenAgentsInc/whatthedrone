@@ -1,5 +1,5 @@
-import { LlamaContext } from 'llama.rn'
-import { Node, Edge, GraphInsight } from '../types/graph'
+import { LlamaContext } from "llama.rn"
+import { Edge, GraphInsight, Node } from "../types/graph"
 
 const ANALYSIS_SYSTEM_PROMPT = `You are analyzing a knowledge graph about drone activities.
 Focus on finding non-obvious connections and patterns.
@@ -141,10 +141,18 @@ NODES: [list of involved node IDs]
     const insights: GraphInsight[] = []
     const graphContext = this.formatGraphForLLM(nodes, edges)
 
+    console.log("we have graphContext:", graphContext)
+
     for (let i = 0; i < this.attempts; i++) {
       const prompt = this.buildPrompt(graphContext, i, insights)
+      console.log('Prompt:', prompt)
       const response = await this.getCompletion(prompt)
+      console.log('Response:', response)
+
       const newInsight = this.parseInsightFromResponse(response)
+      console.log('New insight:', newInsight)
+
+
 
       if (newInsight && newInsight.confidence > 70) {
         insights.push(newInsight)
