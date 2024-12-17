@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
-import { View, Text, Button, ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
-import { GraphAnalysisService } from '../services/graph-analysis'
-import { Node, Edge, GraphInsight } from '../types/graph'
-import { LlamaContext } from 'llama.rn'
+import { LlamaContext } from "llama.rn"
+import React, { useState } from "react"
+import {
+    ActivityIndicator, Button, ScrollView, StyleSheet, Text, View
+} from "react-native"
+import GraphAnalysisService from "../services/graph-analysis"
+import { Edge, GraphInsight, Node } from "../types/graph"
 
 interface Props {
   selectedNodes: Node[]
@@ -11,7 +13,7 @@ interface Props {
   llamaContext: LlamaContext | null
 }
 
-export default function GraphAnalysisPanel({ 
+export default function GraphAnalysisPanel({
   selectedNodes,
   surroundingNodes,
   edges,
@@ -43,7 +45,7 @@ export default function GraphAnalysisPanel({
       ])
 
       // Get edges between relevant nodes
-      const relevantEdges = edges.filter(edge => 
+      const relevantEdges = edges.filter(edge =>
         relevantNodeIds.has(edge.from) && relevantNodeIds.has(edge.to)
       )
 
@@ -92,7 +94,7 @@ export default function GraphAnalysisPanel({
           <View key={i} style={styles.insightCard}>
             <Text style={styles.insightTitle}>{insight.description}</Text>
             <Text style={styles.confidence}>Confidence: {insight.confidence}%</Text>
-            
+
             <Text style={styles.reasoningTitle}>Reasoning:</Text>
             {insight.reasoning.map((step, j) => (
               <Text key={j} style={styles.reasoningStep}>
