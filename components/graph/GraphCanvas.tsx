@@ -23,6 +23,13 @@ interface TouchState {
   previousAngle: number | null;
 }
 
+// Constants for sensitivity
+const PAN_SENSITIVITY = 0.005; // Reduced from 0.02
+const ZOOM_SENSITIVITY = 0.5;  // Added to dampen zoom
+const MIN_ZOOM = 4;           // Increased minimum zoom (more zoomed out)
+const MAX_ZOOM = 12;          // Reduced maximum zoom (less zoomed in)
+const INITIAL_Z = 8;          // Starting zoom level
+
 export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const isFocused = useIsFocused();
   const mountedRef = useRef(true);
@@ -140,15 +147,6 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  const getAngle = (touches: { [key: string]: { x: number; y: number } }) => {
-    const touchArray = Object.values(touches);
-    if (touchArray.length < 2) return null;
-    return Math.atan2(
-      touchArray[1].y - touchArray[0].y,
-      touchArray[1].x - touchArray[0].x
-    );
-  };
-
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -163,7 +161,6 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
           };
         });
         touchState.current.previousDistance = getDistance(touchState.current.previousTouches);
-        touchState.current.previousAngle = getAngle(touchState.current.previousTouches);
       },
 
       onPanResponderMove: (evt, gestureState) => {
@@ -181,8 +178,8 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
 
         if (touchCount === 1) {
           // Simple panning - move the camera target
-          const dx = gestureState.dx * 0.02;
-          const dy = gestureState.dy * 0.02;
+          const dx = gestureState.dx * PAN_SENSITIVITY;
+          const dy = gestureState.dy * PAN_SENSITIVITY;
           
           // Update camera target
           cameraTarget.current.x -= dx;
@@ -191,15 +188,16 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
           // Move camera while maintaining its relative position
           refs.current.camera.position.x = cameraTarget.current.x;
           refs.current.camera.position.y = cameraTarget.current.y;
-          refs.current.camera.position.z = 8; // Keep constant z distance
+          refs.current.camera.position.z = INITIAL_Z; // Keep constant z distance
           refs.current.camera.lookAt(cameraTarget.current);
 
         } else if (touchCount === 2) {
-          // Pinch to zoom
+          // Pinch to zoom with reduced sensitivity
           const currentDistance = getDistance(currentTouches);
           if (touchState.current.previousDistance && currentDistance) {
-            const scale = currentDistance / touchState.current.previousDistance;
-            refs.current.camera.position.z = Math.max(2, Math.min(20, refs.current.camera.position.z * (1 / scale)));
+            const scale = 1 + ((currentDistance / touchState.current.previousDistance - 1) * ZOOM_SENSITIVITY);
+            const newZ = refs.current.camera.position.z / scale;
+            refs.current.camera.position.z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZ));
           }
           touchState.current.previousDistance = currentDistance;
         }
