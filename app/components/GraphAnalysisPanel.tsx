@@ -11,7 +11,7 @@ interface Props {
   llamaContext: LlamaContext | null
 }
 
-export function GraphAnalysisPanel({ 
+export default function GraphAnalysisPanel({ 
   selectedNodes,
   surroundingNodes,
   edges,
