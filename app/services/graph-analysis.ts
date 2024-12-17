@@ -81,6 +81,7 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
     insight: GraphInsight | null,
     nextNodeId: string | null
   } {
+    console.log('Parsing response:', response)
     try {
       const insightMatch = response.match(/INSIGHT: (.+)/)
       const reasoningMatch = response.match(/REASONING: ([\\s\\S]+?)\\nCONFIDENCE:/)
@@ -88,7 +89,16 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
       const nodesMatch = response.match(/NODES: (.+)/)
       const nextNodeMatch = response.match(/NEXT_NODE: (.+)/)
 
+      console.log('Matches:', {
+        insight: insightMatch?.[1],
+        reasoning: reasoningMatch?.[1],
+        confidence: confidenceMatch?.[1],
+        nodes: nodesMatch?.[1],
+        nextNode: nextNodeMatch?.[1]
+      })
+
       if (!insightMatch || !reasoningMatch || !confidenceMatch || !nodesMatch || !nextNodeMatch) {
+        console.log('Failed to match all required fields')
         return { insight: null, nextNodeId: null }
       }
 
@@ -104,13 +114,17 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
         .filter(s => s.length > 0)
       const nextNodeId = nextNodeMatch[1].trim()
 
+      const insight = {
+        description,
+        reasoning,
+        confidence,
+        relatedNodes: nodes,
+      }
+      console.log('Parsed insight:', insight)
+      console.log('Next node:', nextNodeId)
+
       return {
-        insight: {
-          description,
-          reasoning,
-          confidence,
-          relatedNodes: nodes,
-        },
+        insight,
         nextNodeId: nextNodeId === 'DONE' ? null : nextNodeId
       }
     } catch (e) {
@@ -120,6 +134,7 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
   }
 
   private async getCompletion(prompt: string): Promise<string> {
+    console.log('Sending prompt:', prompt)
     return new Promise((resolve, reject) => {
       let response = ''
 
@@ -132,9 +147,13 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
           },
           (data) => {
             response += data.token
+            console.log('Token received:', data.token)
           }
         )
-        .then(() => resolve(response))
+        .then(() => {
+          console.log('Full response:', response)
+          resolve(response)
+        })
         .catch(reject)
     })
   }
@@ -153,42 +172,59 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
     nodes: Node[],
     edges: Edge[],
   ): Promise<GraphInsight[]> {
+    console.log('Starting graph analysis with nodes:', nodes)
+    console.log('and edges:', edges)
+
     const insights: GraphInsight[] = []
     const graphContext = this.formatGraphForLLM(nodes, edges)
     let currentNodeId: string | null = nodes[0]?.id || null
     let visitedNodes = new Set<string>()
 
+    console.log('Initial graph context:', graphContext)
     this.onLog('Beginning graph analysis...')
 
     while (currentNodeId && visitedNodes.size < nodes.length) {
       const currentNode = nodes.find(n => n.id === currentNodeId)
-      if (!currentNode) break
+      if (!currentNode) {
+        console.log('Could not find node:', currentNodeId)
+        break
+      }
 
+      console.log('Analyzing node:', currentNode)
       this.onLog(`Analyzing node: ${currentNode.label}`, currentNode.id)
       visitedNodes.add(currentNodeId)
 
       const prompt = this.buildPrompt(graphContext, currentNode, insights)
+      console.log('Built prompt:', prompt)
       const response = await this.getCompletion(prompt)
+      console.log('Got response:', response)
       
       const { insight, nextNodeId } = this.parseInsightFromResponse(response)
+      console.log('Parsed result:', { insight, nextNodeId })
       
       if (insight && insight.confidence > 70) {
+        console.log('Adding insight:', insight)
         this.onLog(`Found insight: ${insight.description}`)
         insights.push(insight)
       }
 
       currentNodeId = nextNodeId
       if (currentNodeId && visitedNodes.has(currentNodeId)) {
+        console.log('Already visited node:', currentNodeId)
         // If we've seen this node before, pick a random unvisited node
         const unvisitedNodes = nodes.filter(n => !visitedNodes.has(n.id))
+        console.log('Unvisited nodes:', unvisitedNodes)
         if (unvisitedNodes.length > 0) {
           currentNodeId = unvisitedNodes[0].id
+          console.log('Picked new node:', currentNodeId)
         } else {
+          console.log('No more nodes to visit')
           currentNodeId = null
         }
       }
     }
 
+    console.log('Analysis complete with insights:', insights)
     this.onLog('Analysis complete!')
     return this.deduplicateInsights(insights)
   }
