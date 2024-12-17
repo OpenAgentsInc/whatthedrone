@@ -4,7 +4,17 @@ import { Edge, GraphInsight, Node } from "../types/graph"
 const ANALYSIS_SYSTEM_PROMPT = `You are analyzing a knowledge graph about drone activities.
 Focus on finding non-obvious connections and patterns.
 Think carefully and explain your reasoning step by step.
-Format your response exactly as requested.`
+Format your response EXACTLY like this example:
+
+INSIGHT: The connection between military bases and drone sightings suggests systematic surveillance
+REASONING: 1. Multiple military bases report sightings
+2. Pattern of activity near sensitive areas
+3. Consistent timing and behavior
+CONFIDENCE: 85
+NODES: military-base-1, military-base-2, drone-sighting-1
+NEXT_NODE: node-id-to-analyze-next
+
+Your response MUST contain all these sections with the exact labels.`
 
 export default class GraphAnalysisService {
   private context: LlamaContext
@@ -68,12 +78,7 @@ Think step by step:
 4. What unusual connections stand out?
 5. What might this suggest about drone activities?
 
-Provide your insight in this format:
-INSIGHT: [one sentence description]
-REASONING: [numbered steps]
-CONFIDENCE: [0-100]
-NODES: [list of involved node IDs]
-NEXT_NODE: [ID of next node to analyze or DONE if complete]
+Remember to format your response EXACTLY as shown in the example above.
 `
   }
 
@@ -83,11 +88,12 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
   } {
     console.log('Parsing response:', response)
     try {
-      const insightMatch = response.match(/INSIGHT: (.+)/)
-      const reasoningMatch = response.match(/REASONING: ([\\s\\S]+?)\\nCONFIDENCE:/)
-      const confidenceMatch = response.match(/CONFIDENCE: (\\d+)/)
-      const nodesMatch = response.match(/NODES: (.+)/)
-      const nextNodeMatch = response.match(/NEXT_NODE: (.+)/)
+      // More lenient regex patterns that can handle multiline content
+      const insightMatch = response.match(/INSIGHT:\s*(.+?)(?=\nREASONING:)/s)
+      const reasoningMatch = response.match(/REASONING:\s*([\s\S]+?)(?=\nCONFIDENCE:)/s)
+      const confidenceMatch = response.match(/CONFIDENCE:\s*(\d+)/s)
+      const nodesMatch = response.match(/NODES:\s*(.+?)(?=\nNEXT_NODE:)/s)
+      const nextNodeMatch = response.match(/NEXT_NODE:\s*(.+?)(?=\n|$)/s)
 
       console.log('Matches:', {
         insight: insightMatch?.[1],
@@ -109,7 +115,7 @@ NEXT_NODE: [ID of next node to analyze or DONE if complete]
         .filter(s => s.length > 0)
       const confidence = parseInt(confidenceMatch[1])
       const nodes = nodesMatch[1]
-        .split(',')
+        .split(/[,\s]+/)
         .map(s => s.trim())
         .filter(s => s.length > 0)
       const nextNodeId = nextNodeMatch[1].trim()
