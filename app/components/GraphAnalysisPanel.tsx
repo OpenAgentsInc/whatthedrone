@@ -151,6 +151,7 @@ const styles = StyleSheet.create({
     height: '50%',
     display: 'flex',
     flexDirection: 'column',
+    marginTop: -250
   },
   header: {
     marginBottom: 8,
