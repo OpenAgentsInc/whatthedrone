@@ -7,23 +7,24 @@ import GraphAnalysisService from "../services/graph-analysis"
 import { Edge, GraphInsight, Node } from "../types/graph"
 
 interface Props {
-  selectedNodes: Node[]
-  surroundingNodes: Node[]
+  nodes: Node[]
   edges: Edge[]
   llamaContext: LlamaContext | null
+  onFocusNode?: (nodeId: string) => void
 }
 
 export default function GraphAnalysisPanel({
-  selectedNodes,
-  surroundingNodes,
+  nodes,
   edges,
-  llamaContext
+  llamaContext,
+  onFocusNode
 }: Props) {
   const [insights, setInsights] = useState<GraphInsight[]>([])
+  const [logs, setLogs] = useState<string[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function analyzeSelection() {
+  async function beginAnalysis() {
     if (!llamaContext) {
       setError('Please load Llama model first')
       return
@@ -31,30 +32,23 @@ export default function GraphAnalysisPanel({
 
     setIsAnalyzing(true)
     setError(null)
+    setInsights([])
+    setLogs([])
 
     try {
       const analysisService = new GraphAnalysisService(llamaContext, {
         attempts: 8,
-        temperature: 0.7
+        temperature: 0.7,
+        onLog: (message: string, nodeId?: string) => {
+          setLogs(prev => [...prev, message])
+          if (nodeId && onFocusNode) {
+            onFocusNode(nodeId)
+          }
+        }
       })
 
-      // Get all relevant nodes
-      const relevantNodeIds = new Set([
-        ...selectedNodes.map(n => n.id),
-        ...surroundingNodes.map(n => n.id)
-      ])
-
-      // Get edges between relevant nodes
-      const relevantEdges = edges.filter(edge =>
-        relevantNodeIds.has(edge.from) && relevantNodeIds.has(edge.to)
-      )
-
-      const newInsights = await analysisService.analyzeGraphSection(
-        [...selectedNodes, ...surroundingNodes],
-        relevantEdges
-      )
-
-      setInsights(newInsights)
+      const allInsights = await analysisService.analyzeGraph(nodes, edges)
+      setInsights(prev => [...prev, ...allInsights])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed')
     } finally {
@@ -62,26 +56,18 @@ export default function GraphAnalysisPanel({
     }
   }
 
-  if (!selectedNodes.length) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.message}>Select nodes to analyze connections</Text>
-      </View>
-    )
-  }
-
   return (
     <View style={styles.container}>
       <Button
-        title="Analyze Connections"
-        onPress={analyzeSelection}
+        title="Begin Analysis"
+        onPress={beginAnalysis}
         disabled={isAnalyzing || !llamaContext}
       />
 
       {isAnalyzing && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Analyzing connections...</Text>
+          <Text style={styles.loadingText}>Analyzing graph...</Text>
         </View>
       )}
 
@@ -89,26 +75,36 @@ export default function GraphAnalysisPanel({
         <Text style={styles.error}>{error}</Text>
       )}
 
-      <ScrollView style={styles.insightsContainer}>
-        {insights.map((insight, i) => (
-          <View key={i} style={styles.insightCard}>
-            <Text style={styles.insightTitle}>{insight.description}</Text>
-            <Text style={styles.confidence}>Confidence: {insight.confidence}%</Text>
+      <View style={styles.contentContainer}>
+        <ScrollView style={styles.logsContainer}>
+          <Text style={styles.sectionTitle}>Analysis Log</Text>
+          {logs.map((log, i) => (
+            <Text key={i} style={styles.logEntry}>{log}</Text>
+          ))}
+        </ScrollView>
 
-            <Text style={styles.reasoningTitle}>Reasoning:</Text>
-            {insight.reasoning.map((step, j) => (
-              <Text key={j} style={styles.reasoningStep}>
-                {j + 1}. {step}
+        <ScrollView style={styles.insightsContainer}>
+          <Text style={styles.sectionTitle}>Insights</Text>
+          {insights.map((insight, i) => (
+            <View key={i} style={styles.insightCard}>
+              <Text style={styles.insightTitle}>{insight.description}</Text>
+              <Text style={styles.confidence}>Confidence: {insight.confidence}%</Text>
+
+              <Text style={styles.reasoningTitle}>Reasoning:</Text>
+              {insight.reasoning.map((step, j) => (
+                <Text key={j} style={styles.reasoningStep}>
+                  {j + 1}. {step}
+                </Text>
+              ))}
+
+              <Text style={styles.nodesTitle}>Related Nodes:</Text>
+              <Text style={styles.nodes}>
+                {insight.relatedNodes.join(', ')}
               </Text>
-            ))}
-
-            <Text style={styles.nodesTitle}>Related Nodes:</Text>
-            <Text style={styles.nodes}>
-              {insight.relatedNodes.join(', ')}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
     </View>
   )
 }
@@ -119,10 +115,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderRadius: 8,
     margin: 8,
+    height: '50%',
   },
-  message: {
+  contentContainer: {
+    flexDirection: 'row',
+    marginTop: 16,
+    flex: 1,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  logsContainer: {
+    flex: 1,
+    marginRight: 8,
+    backgroundColor: '#222',
+    padding: 8,
+    borderRadius: 8,
+  },
+  logEntry: {
     color: '#888',
-    textAlign: 'center',
+    fontSize: 12,
+    marginBottom: 4,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -137,8 +153,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   insightsContainer: {
-    marginTop: 16,
-    maxHeight: 400,
+    flex: 2,
+    marginLeft: 8,
   },
   insightCard: {
     backgroundColor: '#222',
