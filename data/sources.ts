@@ -1,4 +1,5 @@
-import { GraphData, Node, Edge } from './graph';
+import { Vector3 } from 'three';
+import { GraphData, Node, Edge } from './types';
 
 export interface Source {
   id: string;
@@ -85,7 +86,8 @@ export function mergeSourceIntoGraph(
 export async function buildCompleteGraph(): Promise<GraphData> {
   const sourceFiles = [
     'telegraph-mayorkas-drone-powers.md',
-    // Add more source files here
+    'white-house-statement.md',
+    'skojec-article.md'
   ];
 
   let graph: GraphData = {
@@ -101,3 +103,8 @@ export async function buildCompleteGraph(): Promise<GraphData> {
 
   return graph;
 }
+
+// Export source data
+export * from './sources/telegraph';
+export * from './sources/white-house';
+export * from './sources/skojec';
