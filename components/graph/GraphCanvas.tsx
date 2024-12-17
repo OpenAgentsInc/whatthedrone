@@ -1,6 +1,6 @@
 import { ExpoWebGLRenderingContext, GLView } from "expo-gl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View, Text, Dimensions } from "react-native";
+import { StyleSheet, View, Text, Dimensions, PanResponder, GestureResponderEvent, PanResponderGestureState } from "react-native";
 import * as THREE from "three";
 import { useIsFocused } from "@react-navigation/native";
 import { Node, Edge, GraphRefs, LabelPosition } from "./types";
@@ -12,6 +12,17 @@ interface GraphCanvasProps {
   onNodeSelect?: (node: Node | null) => void;
 }
 
+interface TouchState {
+  previousTouches: {
+    [key: string]: {
+      x: number;
+      y: number;
+    };
+  };
+  previousDistance: number | null;
+  previousAngle: number | null;
+}
+
 export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
   const isFocused = useIsFocused();
   const mountedRef = useRef(true);
@@ -20,6 +31,11 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     edges: [],
   });
   const [labelPositions, setLabelPositions] = useState<LabelPosition[]>([]);
+  const touchState = useRef<TouchState>({
+    previousTouches: {},
+    previousDistance: null,
+    previousAngle: null,
+  });
 
   const updateLabelPositions = useCallback(() => {
     if (!refs.current.camera || !refs.current.renderer) return;
@@ -65,12 +81,6 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
       return;
     }
 
-    // Rotate camera around scene
-    const time = Date.now() * 0.0002;
-    refs.current.camera.position.x = Math.cos(time) * 8;
-    refs.current.camera.position.z = Math.sin(time) * 8;
-    refs.current.camera.lookAt(0, 0, 0);
-
     try {
       refs.current.renderer.render(refs.current.scene, refs.current.camera);
       refs.current.gl.endFrameEXP();
@@ -84,7 +94,7 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
   }, [isFocused, updateLabelPositions]);
 
-  const handleTap = useCallback((event: any) => {
+  const handleTap = useCallback((event: GestureResponderEvent) => {
     if (!refs.current.camera || !refs.current.renderer || !refs.current.scene) return;
 
     const { locationX, locationY } = event.nativeEvent;
@@ -119,6 +129,92 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
     }
   }, [nodes, onNodeSelect]);
 
+  const getDistance = (touches: { [key: string]: { x: number; y: number } }) => {
+    const touchArray = Object.values(touches);
+    if (touchArray.length < 2) return null;
+    const dx = touchArray[1].x - touchArray[0].x;
+    const dy = touchArray[1].y - touchArray[0].y;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const getAngle = (touches: { [key: string]: { x: number; y: number } }) => {
+    const touchArray = Object.values(touches);
+    if (touchArray.length < 2) return null;
+    return Math.atan2(
+      touchArray[1].y - touchArray[0].y,
+      touchArray[1].x - touchArray[0].x
+    );
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+
+      onPanResponderGrant: (evt) => {
+        touchState.current.previousTouches = {};
+        Array.from(evt.nativeEvent.touches).forEach(touch => {
+          touchState.current.previousTouches[touch.identifier] = {
+            x: touch.pageX,
+            y: touch.pageY,
+          };
+        });
+        touchState.current.previousDistance = getDistance(touchState.current.previousTouches);
+        touchState.current.previousAngle = getAngle(touchState.current.previousTouches);
+      },
+
+      onPanResponderMove: (evt, gestureState) => {
+        if (!refs.current.camera) return;
+
+        const currentTouches: { [key: string]: { x: number; y: number } } = {};
+        Array.from(evt.nativeEvent.touches).forEach(touch => {
+          currentTouches[touch.identifier] = {
+            x: touch.pageX,
+            y: touch.pageY,
+          };
+        });
+
+        const touchCount = Object.keys(currentTouches).length;
+
+        if (touchCount === 1) {
+          // Pan
+          const dx = gestureState.dx * 0.05;
+          const dy = gestureState.dy * 0.05;
+          
+          refs.current.camera.position.x -= dx;
+          refs.current.camera.position.y += dy;
+        } else if (touchCount === 2) {
+          // Pinch to zoom
+          const currentDistance = getDistance(currentTouches);
+          const currentAngle = getAngle(currentTouches);
+
+          if (touchState.current.previousDistance && currentDistance) {
+            const scale = currentDistance / touchState.current.previousDistance;
+            refs.current.camera.position.z *= (1 / scale);
+          }
+
+          // Rotation
+          if (touchState.current.previousAngle && currentAngle) {
+            const angleChange = currentAngle - touchState.current.previousAngle;
+            refs.current.camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angleChange);
+          }
+
+          touchState.current.previousDistance = currentDistance;
+          touchState.current.previousAngle = currentAngle;
+        }
+
+        touchState.current.previousTouches = currentTouches;
+        refs.current.camera.lookAt(0, 0, 0);
+      },
+
+      onPanResponderRelease: () => {
+        touchState.current.previousDistance = null;
+        touchState.current.previousAngle = null;
+        touchState.current.previousTouches = {};
+      },
+    })
+  ).current;
+
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     Object.assign(refs.current, createScene(gl, nodes, edges));
     
@@ -138,12 +234,14 @@ export function GraphCanvas({ nodes, edges, onNodeSelect }: GraphCanvasProps) {
 
   return (
     <View style={styles.container}>
-      <GLView
-        key={isFocused ? "focused" : "unfocused"}
-        style={styles.canvas}
-        onContextCreate={onContextCreate}
-        onTouchEnd={handleTap}
-      />
+      <View {...panResponder.panHandlers} style={StyleSheet.absoluteFill}>
+        <GLView
+          key={isFocused ? "focused" : "unfocused"}
+          style={styles.canvas}
+          onContextCreate={onContextCreate}
+          onTouchEnd={handleTap}
+        />
+      </View>
       <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
         {labelPositions.map(label => (
           <Text
