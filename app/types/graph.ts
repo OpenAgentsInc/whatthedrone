@@ -18,9 +18,3 @@ export interface GraphInsight {
   confidence: number;
   relatedNodes: string[];
 }
-
-export default {
-  Node,
-  Edge,
-  GraphInsight
-};
