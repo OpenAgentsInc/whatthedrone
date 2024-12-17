@@ -1,14 +1,13 @@
 import React, { useState } from 'react'
 import { View, Text, Button, ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
 import { GraphAnalysisService } from '../services/graph-analysis'
-import { GraphNode, GraphEdge, GraphInsight } from '../types/graph'
+import { Node, Edge, GraphInsight } from '../types/graph'
 import { LlamaContext } from 'llama.rn'
-import { colors } from '@/theme/colorsDark'
 
 interface Props {
-  selectedNodes: GraphNode[]
-  surroundingNodes: GraphNode[]
-  edges: GraphEdge[]
+  selectedNodes: Node[]
+  surroundingNodes: Node[]
+  edges: Edge[]
   llamaContext: LlamaContext | null
 }
 
@@ -38,24 +37,24 @@ export function GraphAnalysisPanel({
       })
 
       // Get all relevant nodes
-      const relevantNodes = new Set([
-        ...selectedNodes,
-        ...surroundingNodes
+      const relevantNodeIds = new Set([
+        ...selectedNodes.map(n => n.id),
+        ...surroundingNodes.map(n => n.id)
       ])
 
       // Get edges between relevant nodes
       const relevantEdges = edges.filter(edge => 
-        relevantNodes.has(edge.from) && relevantNodes.has(edge.to)
+        relevantNodeIds.has(edge.from) && relevantNodeIds.has(edge.to)
       )
 
       const newInsights = await analysisService.analyzeGraphSection(
-        Array.from(relevantNodes),
+        [...selectedNodes, ...surroundingNodes],
         relevantEdges
       )
 
       setInsights(newInsights)
-    } catch (e) {
-      setError(e.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed')
     } finally {
       setIsAnalyzing(false)
     }
@@ -115,12 +114,12 @@ export function GraphAnalysisPanel({
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: colors.palette.neutral100,
+    backgroundColor: '#1a1a1a',
     borderRadius: 8,
     margin: 8,
   },
   message: {
-    color: colors.palette.neutral600,
+    color: '#888',
     textAlign: 'center',
   },
   loadingContainer: {
@@ -129,10 +128,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 8,
-    color: colors.palette.neutral600,
+    color: '#888',
   },
   error: {
-    color: colors.palette.angry500,
+    color: '#ff4444',
     marginTop: 8,
   },
   insightsContainer: {
@@ -140,7 +139,7 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   insightCard: {
-    backgroundColor: colors.palette.neutral200,
+    backgroundColor: '#222',
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
@@ -148,30 +147,30 @@ const styles = StyleSheet.create({
   insightTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.palette.neutral800,
+    color: '#fff',
     marginBottom: 8,
   },
   confidence: {
-    color: colors.palette.neutral600,
+    color: '#888',
     marginBottom: 8,
   },
   reasoningTitle: {
     fontWeight: 'bold',
-    color: colors.palette.neutral800,
+    color: '#fff',
     marginBottom: 4,
   },
   reasoningStep: {
-    color: colors.palette.neutral700,
+    color: '#ccc',
     marginBottom: 2,
     paddingLeft: 8,
   },
   nodesTitle: {
     fontWeight: 'bold',
-    color: colors.palette.neutral800,
+    color: '#fff',
     marginTop: 8,
     marginBottom: 4,
   },
   nodes: {
-    color: colors.palette.neutral600,
+    color: '#888',
   },
 })
